@@ -84,6 +84,7 @@ This is the source the other two files are generated from (`labs/hw/report.py`).
 
 | Report | Rig | Suite | FastACL | VPP | Result |
 |---|---|---|---|---|---|
+| [2026-10-01_1301_bluefield3_full](2026-10-01_1301_bluefield3_full/) | bluefield3 | full | 0.6.1 | v25.10-release | PASS: 3 checks passed, 0 failed, 4 recorded measurements. 2026-10-01 12:43 UTC. |
 | [2026-10-01_1242_bluefield3_full](2026-10-01_1242_bluefield3_full/) | bluefield3 | full | 0.6.1 | v26.06-release | PASS: 3 checks passed, 0 failed, 4 recorded measurements. 2026-10-01 12:28 UTC. |
 | [2026-10-01_1202_bluefield3_full](2026-10-01_1202_bluefield3_full/) | bluefield3 | full | 0.6.1 | v26.06-release | PASS: 3 checks passed, 0 failed, 4 recorded measurements. 2026-10-01 11:47 UTC. |
 | [2026-10-01_1146_bluefield3_full](2026-10-01_1146_bluefield3_full/) | bluefield3 | full | 0.6.1 | v25.10-release | PASS: 3 checks passed, 0 failed, 4 recorded measurements. 2026-10-01 11:32 UTC. |
