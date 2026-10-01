@@ -26,7 +26,9 @@ def dut_software(rig):
     if sw.startswith("bf-bundle-"):
         parts = sw.split("_")
         return f"DOCA {parts[1]}" if len(parts) > 1 else sw
-    return sw.split(",")[0]
+    if sw:
+        return ", ".join(p.strip() for p in sw.split(",") if not p.strip().startswith("bf-release"))
+    return f"kernel {rig['dut_kernel']}" if rig.get("dut_kernel") else ""
 
 
 def verdict_line(path):
