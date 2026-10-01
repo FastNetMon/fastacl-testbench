@@ -21,6 +21,14 @@ def rig_record(path):
     return {}
 
 
+def dut_software(rig):
+    sw = rig.get("dut_os", "")
+    if sw.startswith("bf-bundle-"):
+        parts = sw.split("_")
+        return f"DOCA {parts[1]}" if len(parts) > 1 else sw
+    return sw.split(",")[0]
+
+
 def verdict_line(path):
     try:
         with open(path) as f:
@@ -36,7 +44,8 @@ def main():
     reports = sys.argv[1]
     header = os.path.join(os.path.dirname(os.path.abspath(__file__)), "reports-readme.md")
     lines = [open(header).read().rstrip("\n"), "",
-             "| Report | Rig | Suite | FastACL | VPP | Result |", "|---|---|---|---|---|---|"]
+             "| Report | Rig | Suite | FastACL | VPP | DUT software | Result |",
+             "|---|---|---|---|---|---|---|"]
     for name in sorted(os.listdir(reports), reverse=True):
         folder = os.path.join(reports, name)
         if not os.path.isfile(os.path.join(folder, "report.md")):
@@ -46,7 +55,8 @@ def main():
         dut = rig.get("dut") or (parts[2] if len(parts) > 3 else "")
         suite = parts[-1]
         lines.append(f"| [{name}]({name}/) | {dut} | {suite} | {rig.get('plugin_version', '')} | "
-                     f"{rig.get('vpp_version', '')} | {verdict_line(os.path.join(folder, 'report.md'))} |")
+                     f"{rig.get('vpp_version', '')} | {dut_software(rig)} | "
+                     f"{verdict_line(os.path.join(folder, 'report.md'))} |")
     print("\n".join(lines))
 
 
