@@ -1,0 +1,48 @@
+services:
+  dut:
+    image: ${DUT_IMAGE:-fastacl-dut:current}
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+      - DUT=${DUT:-server1}
+      - DUT_BF_MODE=${DUT_BF_MODE:-}
+      - DUT_POLL_WORKERS=${DUT_POLL_WORKERS:-}
+      - DUT_NUM_QUEUES=${DUT_NUM_QUEUES:-}
+      - DUT_RX_DESC=${DUT_RX_DESC:-}
+      - DUT_TX_DESC=${DUT_TX_DESC:-}
+    volumes:
+      - ../..:/src
+      - /dev/hugepages:/dev/hugepages
+      - /dev/hugepages1G:/dev/hugepages1G
+      - /dev/infiniband:/dev/infiniband
+      - /run/vpp:/run/vpp
+      - /usr/lib64/mft:/usr/lib64/mft:ro
+    working_dir: /src
+    privileged: true
+    network_mode: host
+    stop_grace_period: 30s
+    command: /src/labs/hw/dut/start.sh
+
+  gen:
+    build:
+      context: ../..
+      dockerfile: docker/Dockerfile.trex
+    environment:
+      - PYTHONDONTWRITEBYTECODE=1
+      - GEN=${GEN:-flame}
+      - DUT=${DUT:-server1}
+      - TREX_TARGET_MPPS=${TREX_TARGET_MPPS:-}
+      - TREX_RATE=${TREX_RATE:-}
+      - TREX_PKTSIZE=${TREX_PKTSIZE:-}
+      - TREX_ATTACK=${TREX_ATTACK:-}
+    volumes:
+      - ../..:/src
+      - /dev/hugepages:/dev/hugepages
+      - /sys:/sys
+      - /lib/modules:/lib/modules:ro
+    working_dir: /src
+    privileged: true
+    network_mode: host
+    stdin_open: true
+    tty: true
+    stop_grace_period: 10s
+    command: /src/labs/hw/gen/start.sh

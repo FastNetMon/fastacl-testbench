@@ -1,0 +1,12 @@
+- port_limit      : 2
+  version         : 2
+  interfaces      : ["__SENDER_PCI__", "__RECEIVER_PCI__"]
+  port_info       :
+    - ip          : "__SENDER_IP__"
+    - ip          : "__RECEIVER_IP__"
+  platform        :
+    master_thread_id  : __TREX_MASTER_CORE__
+    latency_thread_id : __TREX_LATENCY_CORE__
+    dual_if           :
+      - socket         : __TREX_SOCKET__
+        threads        : [__TREX_WORKER_LIST__]

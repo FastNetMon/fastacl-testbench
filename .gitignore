@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+labs/hw/lab.env
+labs/hw/license/
+bundle/
+/results/
+out/

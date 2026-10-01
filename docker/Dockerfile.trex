@@ -1,0 +1,45 @@
+FROM ubuntu:24.04
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TREX_VERSION=3.06 TREX_DIR=/opt/trex
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wget ca-certificates python3 python3-pip \
+    libibverbs1 libibverbs-dev ibverbs-providers rdma-core \
+    iproute2 net-tools pciutils libarchive13t64 \
+    htop btop ethtool \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update \
+    && U=https://linux.mellanox.com/public/repo/mlnx_ofed/latest/ubuntu24.04/x86_64/ \
+    && PKG=$(wget -qO- --no-check-certificate "$U" | grep -o 'mft_[^"]*_amd64\.deb' | head -1) \
+    && wget -q --no-check-certificate "${U}${PKG}" -O /tmp/mft.deb \
+    && apt-get install -y --no-install-recommends /tmp/mft.deb \
+    && rm -f /tmp/mft.deb && rm -rf /var/lib/apt/lists/*
+
+RUN wget -q --no-check-certificate "https://trex-tgn.cisco.com/trex/release/v${TREX_VERSION}.tar.gz" \
+         -O /tmp/trex.tar.gz \
+    && mkdir -p /opt/trex \
+    && tar xf /tmp/trex.tar.gz -C /opt/trex --strip-components=1 \
+    && rm /tmp/trex.tar.gz \
+    && find /opt/trex -name "*.py" -exec sed -i \
+         -e 's/collections\.Callable/collections.abc.Callable/g' \
+         -e 's/collections\.Hashable/collections.abc.Hashable/g' \
+         -e 's/collections\.Mapping/collections.abc.Mapping/g' \
+         -e 's/collections\.MutableMapping/collections.abc.MutableMapping/g' \
+         -e 's/collections\.MutableSequence/collections.abc.MutableSequence/g' \
+         -e 's/collections\.Sequence/collections.abc.Sequence/g' \
+         -e 's/collections\.Iterable/collections.abc.Iterable/g' \
+         -e 's/collections\.Iterator/collections.abc.Iterator/g' \
+         {} \; \
+    && sed -i \
+         "s/platform\.linux_distribution(full_distribution_name=False)\[0\]\.lower()/''/g" \
+         /opt/trex/dpdk_nic_bind.py \
+    && rm -f /opt/trex/so/x86_64/libstdc++.so.6 \
+    && printf 'import importlib\nreload = importlib.reload\n' \
+         > /opt/trex/automation/trex_control_plane/interactive/imp.py \
+    && sed -i \
+         "s/self\.m_devices\[key\]\['Driver_str'\]/self.m_devices[key].get('Driver_str', '')/g" \
+         /opt/trex/dpdk_setup_ports.py
+
+ENV PATH="/opt/trex:$PATH"
+WORKDIR /opt/trex

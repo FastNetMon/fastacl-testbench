@@ -1,0 +1,6 @@
+set interface state __IF_LEFT__ up
+set interface state __IF_RIGHT__ up
+set interface l2 xconnect __IF_LEFT__ __IF_RIGHT__
+set interface l2 xconnect __IF_RIGHT__ __IF_LEFT__
+set interface fastacl __IF_LEFT__
+set interface fastacl __IF_RIGHT__

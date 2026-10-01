@@ -1,0 +1,97 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 FastNetMon (fastnetmon.com)
+
+name: hw-line-rate
+
+on:
+  workflow_dispatch:
+    inputs:
+      dut:
+        type: choice
+        options: [server1, epyc-sp5, bluefield3, all]
+        default: server1
+      suite:
+        type: choice
+        options: [gate, full]
+        default: gate
+      release_tag:
+        type: string
+        default: latest-main
+      vpp:
+        type: choice
+        options: ["2510", "2606"]
+        default: "2510"
+      calibrate:
+        type: boolean
+        default: false
+
+concurrency:
+  group: hw-lab
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      profiles: ${{ steps.p.outputs.profiles }}
+    steps:
+      - id: p
+        run: |
+          case "${{ inputs.dut || 'all' }}" in
+            all) echo 'profiles=["server1","epyc-sp5","bluefield3"]' >> "$GITHUB_OUTPUT" ;;
+            *)   echo 'profiles=["${{ inputs.dut }}"]' >> "$GITHUB_OUTPUT" ;;
+          esac
+
+  bench:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        profile: ${{ fromJSON(needs.plan.outputs.profiles) }}
+    env:
+      HOST_REPO: fastacl-testbench
+      RELEASE_TAG: ${{ inputs.release_tag || 'latest-main' }}
+      VPP: ${{ inputs.vpp || '2510' }}
+      CALIBRATE_INPUT: ${{ inputs.calibrate || false }}
+      GH_TOKEN: ${{ secrets.FASTACL_RELEASE_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lab access and licence
+        env:
+          LAB_ENV_CONTENT: ${{ secrets.LAB_ENV }}
+          LAB_SSH_KEY: ${{ secrets.LAB_SSH_KEY }}
+          FASTACL_LAB_LICENSE_JSON: ${{ secrets.FASTACL_LAB_LICENSE_JSON }}
+          FASTACL_LAB_LICENSE_SIG: ${{ secrets.FASTACL_LAB_LICENSE_SIG }}
+        run: labs/hw/ci-prepare.sh
+
+      - name: Join lab tailnet
+        uses: tailscale/github-action@v4
+        with:
+          authkey: ${{ secrets.TS_AUTHKEY }}
+
+      - name: Tailnet check
+        run: |
+          tailscale status | head -40
+          resolvectl status 2>/dev/null | sed -n '1,25p' || cat /etc/resolv.conf
+          . labs/hw/vars.sh >/dev/null 2>&1
+          for h in "$LAB_HOST_server1" "$LAB_HOST_epyc" "$LAB_HOST_lava" "$LAB_HOST_flame" "$LAB_HOST_bluefield3" "${LAB_PROXY#*@}"; do
+            echo "== $h: tailscale ip=$(tailscale ip -4 "${h%%.*}" 2>&1 | head -1) getent=$(getent hosts "$h" | awk '{print $1}')"
+            tailscale ping -c 1 --timeout 5s "${h%%.*}" 2>&1 | tail -1
+          done
+
+      - name: ${{ matrix.profile }} ${{ inputs.suite || 'gate' }}
+        id: run
+        run: labs/hw/run.sh "${{ matrix.profile }}" "${{ inputs.suite || 'gate' }}"
+
+      - name: Upload the report
+        if: always() && steps.run.outputs.dir != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.run.outputs.name }}
+          path: ${{ steps.run.outputs.dir }}
