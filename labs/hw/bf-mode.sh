@@ -9,7 +9,8 @@ WANT="${1:-}"
 case "$WANT" in
   nic) WANT_VAL="SEPARATED_HOST(0)"; WANT_NUM=0 ;;
   dpu) WANT_VAL="EMBEDDED_CPU(1)"; WANT_NUM=1 ;;
-  *) echo "usage: bf-mode.sh nic|dpu   (BF_MODE_FORCE=1 cycles even with other users logged in)" >&2
+  cycle) WANT_VAL=""; WANT_NUM="" ;;
+  *) echo "usage: bf-mode.sh nic|dpu|cycle   (cycle: cold power cycle only; BF_MODE_FORCE=1 cycles even with other users logged in)" >&2
      exit 2 ;;
 esac
 
@@ -46,8 +47,9 @@ other_users() {
 
 read -r current next <<<"$(mode_cols)"
 [ -n "${current:-}" ] || { say "cannot read INTERNAL_CPU_MODEL on the BlueField-3 Arm"; exit 1; }
+[ "$WANT" = cycle ] && WANT_VAL="$current"
 say "current=$current next-boot=$next want=$WANT_VAL"
-[ "$current" = "$WANT_VAL" ] && { say "already in $WANT mode"; exit 0; }
+[ "$WANT" != cycle ] && [ "$current" = "$WANT_VAL" ] && { say "already in $WANT mode"; exit 0; }
 
 if [ "${BF_MODE_FORCE:-0}" != 1 ]; then
   for t in "$HOST" "$ARM"; do
@@ -56,14 +58,14 @@ if [ "${BF_MODE_FORCE:-0}" != 1 ]; then
   done
 fi
 
-if [ "$next" != "$WANT_VAL" ]; then
+if [ "$WANT" != cycle ] && [ "$next" != "$WANT_VAL" ]; then
   say "setting INTERNAL_CPU_MODEL=$WANT_NUM"
   $SSH "$ARM" "sudo -n mlxconfig -d $BF_PCI -y s INTERNAL_CPU_MODEL=$WANT_NUM" >/dev/null 2>&1 ||
     { say "mlxconfig set failed"; exit 1; }
 fi
 
 host_boot=$(boot_id "$HOST"); arm_boot=$(boot_id "$ARM")
-say "cold power cycle of ${DUT_HOST%%.*} to apply the mode"
+say "cold power cycle of ${DUT_HOST%%.*}"
 $SSH "$HOST" "sg docker -c 'docker ps -q | xargs -r docker stop -t 10'; sudo -n sync" >/dev/null 2>&1 || true
 $SSH "$ARM" "docker ps -q | xargs -r docker stop -t 10; sudo -n sync" >/dev/null 2>&1 || true
 DUT=epyc bash "$SCRIPT_DIR/setup/ipmi.sh" cycle || exit 1
@@ -72,10 +74,10 @@ wait_new_boot "$ARM" "$arm_boot" "BlueField-3 Arm" || exit 1
 
 read -r current next <<<"$(mode_cols)"
 [ "${current:-}" = "$WANT_VAL" ] || { say "mode is still ${current:-unknown} after the cycle"; exit 1; }
-if [ "$WANT" = dpu ]; then
+if [ "$WANT_VAL" = "EMBEDDED_CPU(1)" ]; then
   for _ in $(seq 1 20); do
     [ "$($SSH "$ARM" "ip -br link | grep -cE '^p[01] '" 2>/dev/null)" = 2 ] && break
     sleep 6
   done
 fi
-say "BlueField-3 is in $WANT mode"
+say "BlueField-3 is in ${WANT/cycle/its unchanged} mode"

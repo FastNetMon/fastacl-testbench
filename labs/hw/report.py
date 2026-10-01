@@ -101,7 +101,8 @@ SECTIONS = [
         ("dut_mpps", "absorbed Mpps"), ("nic_lost_pct", "NIC loss %"),
         ("cyc_pkt", "cycles/pkt")]),
     ("dpu", "BlueField-3 Arm drop line rate", [
-        ("scenario", "test"), ("dut_mpps", "absorbed Mpps"), ("floor", "floor Mpps"),
+        ("scenario", "test"), ("dut_mpps", "absorbed Mpps"), ("mpps_min", "min"), ("mpps_max", "max"),
+        ("trials", "trials"), ("cyc_pkt", "ticks/pkt"), ("floor", "floor Mpps"),
         ("verdict", "verdict")]),
 ]
 
@@ -136,6 +137,7 @@ def rig_table(rig, meta):
         ("DUT CPU", f"{rig.get('dut_cpu', '?')} ({fmt(rig.get('dut_cores'))} CPUs)"),
         ("DUT NIC", f"{rig.get('dut_nic', '?')}, link {rig.get('link_speed', '?')}"),
         ("DUT kernel", rig.get("dut_kernel", "?")),
+        ("DUT software", rig.get("dut_os", "")),
         ("Generator", f"{rig.get('gen_cpu', '?')} ({fmt(rig.get('gen_cores'))} CPUs), "
                       f"{rig.get('gen_nic', '?')}, TRex {fmt(rig.get('trex_version'))}"),
         ("VPP", f"{rig.get('vpp_version', '?')}, {fmt(rig.get('vpp_workers'))} worker threads"
@@ -146,7 +148,7 @@ def rig_table(rig, meta):
         ("Testbench", meta["testbench"]),
         ("Run", meta["run_url"] or "local"),
     ]
-    return ["| | |", "|---|---|"] + [f"| {k} | {v} |" for k, v in rows]
+    return ["| | |", "|---|---|"] + [f"| {k} | {v} |" for k, v in rows if v]
 
 
 def method(rig, benches):

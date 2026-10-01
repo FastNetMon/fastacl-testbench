@@ -79,7 +79,8 @@ dpu() {
   "$SCRIPT_DIR/sync-hosts.sh" ||
     { printf '{"ts": %s, "dut": "%s", "bench": "load", "scenario": "sync", "verdict": "FAIL"}\n' \
         "$(date +%s)" "$PROFILE" >> "$RESULTS_FILE"; return 1; }
-  DPU_FRAME_SIZES="$sizes" "$SCRIPT_DIR/dpu/run-dpu-bench.sh" || rc=$?
+  DPU_FRAME_SIZES="$sizes" DPU_TRIALS="${DPU_TRIALS:-$([ "$SUITE" = full ] && echo 3 || echo 1)}" \
+    "$SCRIPT_DIR/dpu/run-dpu-bench.sh" || rc=$?
   echo "run-dpu-bench.sh exit=$rc"
   return $rc
 }

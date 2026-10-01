@@ -16,6 +16,7 @@ DPU_SRC="${DPU_SRC:-/home/${LAB_SSH_USER}/${HOST_REPO}}"
 SSH="ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=15 -o ServerAliveInterval=5"
 DPU="${LAB_SSH_USER}@${DPU_HOST}"; GENS="${LAB_SSH_USER}@${GEN_HOST}"
 SAMPLE_SEC="${SAMPLE_SEC:-15}"
+TRIALS="${DPU_TRIALS:-1}"
 FRAMES="${DPU_FRAME_SIZES:-64 imix 1500}"
 TARGET_MPPS="${TREX_TARGET_MPPS:-142}"
 RESULTS_FILE="${RESULTS_FILE:-$HW/../../results/run.jsonl}"
@@ -78,18 +79,19 @@ rig() {
   cpu=$($SSH "$DPU" "lscpu | awk -F: '/Model name/{print \$2; exit}' | xargs")
   cores=$($SSH "$DPU" "grep -c ^processor /proc/cpuinfo")
   kernel=$($SSH "$DPU" "uname -r")
+  dut_os=$($SSH "$DPU" "cat /etc/mlnx-release 2>/dev/null")
   nic=$($SSH "$DPU" "lspci -s 03:00.0 | cut -d: -f3- | xargs")
   vpp_ver=$(vpp show version | awk '{print $2}' | head -1)
   plugin=$($SSH "$DPU" "docker exec bf3-vpp dpkg-query -W fastacl-plugin" 2>/dev/null | awk '{print $2}')
   workers=$(vpp show threads | grep -c vpp_wk_)
-  link=$(vpp show hardware-interfaces p0 | awk -F': ' '/Link speed/{print $2; exit}')
+  link=$(vpp show hardware-interfaces p0 | awk -F': ' '/Link speed/{print $2; exit}' | sed -E 's/\.0+ / /')
   lic_kind=$(vpp show fastacl license | awk -F': *' '/^kind/{print $2}')
   lic_exp=$(vpp show fastacl license | awk -F': *' '/^expires/{print $2}')
   gcpu=$($SSH "$GENS" "grep -m1 'model name' /proc/cpuinfo | cut -d: -f2 | xargs")
   gcores=$($SSH "$GENS" "grep -c ^processor /proc/cpuinfo")
   gnic=$($SSH "$GENS" "lspci -s ${SENDER_PCI#0000:} | cut -d: -f3- | xargs")
   emit bench=rig dut_cpu="BlueField-3 Arm ${cpu:-Cortex-A78AE}" dut_cores="$cores" \
-    dut_kernel="$kernel" dut_nic="$nic" link_speed="$link" gen_cpu="$gcpu" gen_cores="$gcores" \
+    dut_kernel="$kernel" dut_os="$dut_os" dut_nic="$nic" link_speed="$link" gen_cpu="$gcpu" gen_cores="$gcores" \
     gen_nic="$gnic" vpp_version="$vpp_ver" plugin_version="$plugin" vpp_workers="$workers" rx_desc=4096 tx_desc=4096 \
     trex_version="${TREX_VERSION:-3.06}" target_mpps="$TARGET_MPPS" licence="$lic_kind" \
     licence_expires="$lic_exp" verdict=INFO
@@ -127,21 +129,37 @@ measure_drop_mpps() {
   vpp fastacl rule del all >/dev/null; vpp fastacl rule add order 10 proto 17 action drop >/dev/null
   sleep 4
   local g0 g1 t0 t1
+  vpp clear runtime >/dev/null
   g0=$(rx_good); t0=$(date +%s.%N)
   sleep "$SAMPLE_SEC"
   g1=$(rx_good); t1=$(date +%s.%N)
-  awk -v a="${g0:-0}" -v b="${g1:-0}" -v s="$t0" -v e="$t1" 'BEGIN{printf "%.1f", (b-a)/(e-s)/1e6}'
+  local cyc
+  cyc=$(vpp show runtime | awk '$1 ~ /^fastacl-filter/ {v += $4; c += $4 * $6} END {if (v) printf "%.1f", c / v}')
+  awk -v a="${g0:-0}" -v b="${g1:-0}" -v s="$t0" -v e="$t1" -v c="${cyc:-}" \
+    'BEGIN{printf "%.1f %s", (b-a)/(e-s)/1e6, c}'
+}
+
+measure_trials() {
+  local i out=""
+  for i in $(seq 1 "$TRIALS"); do
+    out+="$(measure_drop_mpps)"$'\n'
+  done
+  printf '%s' "$out" | sort -n -k1,1 | awk '
+    {m[NR] = $1; c[NR] = $2}
+    END {k = int((NR + 1) / 2); printf "%s %s %s %s", m[k], c[k], m[1], m[NR]}'
 }
 
 record() {
-  local frame="$1" attack="$2" mpps="$3" floor verdict=INFO
+  local frame="$1" attack="$2" mpps cyc lo hi floor verdict=INFO
+  read -r mpps cyc lo hi <<<"$3"
   floor=$(eval "echo \${FLOOR_$frame:-}")
   if [ -n "$floor" ] && [ "$CALIBRATE" != 1 ]; then
     if awk -v m="$mpps" -v f="$floor" 'BEGIN{exit !(m >= f)}'; then verdict=PASS; else verdict=FAIL; rc=1; fi
   fi
-  echo "  $frame drop: $mpps Mpps (floor ${floor:--}) $verdict"
+  echo "  $frame drop: $mpps Mpps (median of $TRIALS, range ${lo:-$mpps}-${hi:-$mpps}), ${cyc:--} ticks/pkt (floor ${floor:--}) $verdict"
   emit bench=dpu scenario="udp drop ${frame}" frame="$frame" attack="$attack" rules=1 \
-    dut_mpps="$mpps" floor="${floor:-}" verdict="$verdict"
+    dut_mpps="$mpps" mpps_min="${lo:-$mpps}" mpps_max="${hi:-$mpps}" trials="$TRIALS" \
+    cyc_pkt="${cyc:-}" floor="${floor:-}" verdict="$verdict"
 }
 
 teardown() {
@@ -160,9 +178,9 @@ rig
 for f in $FRAMES; do
   say "=== $f ==="
   if [ "$f" = imix ]; then
-    start_gen 64 cold-scan-imix && switch_attack cold-scan-imix && record imix cold-scan-imix "$(measure_drop_mpps)"
+    start_gen 64 cold-scan-imix && switch_attack cold-scan-imix && record imix cold-scan-imix "$(measure_trials)"
   else
-    start_gen "$f" udp-rand && switch_attack udp-rand && record "$f" udp-rand "$(measure_drop_mpps)"
+    start_gen "$f" udp-rand && switch_attack udp-rand && record "$f" udp-rand "$(measure_trials)"
   fi || { emit bench=load scenario="generator $f" verdict=FAIL; rc=1; }
 done
 
