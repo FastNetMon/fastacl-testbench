@@ -79,7 +79,7 @@ rig() {
   cpu=$($SSH "$DPU" "lscpu | awk -F: '/Model name/{print \$2; exit}' | xargs")
   cores=$($SSH "$DPU" "grep -c ^processor /proc/cpuinfo")
   kernel=$($SSH "$DPU" "uname -r")
-  dut_os=$($SSH "$DPU" "cat /etc/mlnx-release 2>/dev/null")
+  dut_os=$($SSH "$DPU" 'echo "DOCA $(dpkg-query -W -f="\${Version}" doca-runtime 2>/dev/null | sed -E "s/^1-//; s/-.*//"), bf-release $(dpkg-query -W -f="\${Version}" bf-release 2>/dev/null), NIC firmware $(sudo -n flint -d 03:00.0 q 2>/dev/null | awk -F": *" "/^FW Version/{print \$2}")"')
   nic=$($SSH "$DPU" "lspci -s 03:00.0 | cut -d: -f3- | xargs")
   vpp_ver=$(vpp show version | awk '{print $2}' | head -1)
   plugin=$($SSH "$DPU" "docker exec bf3-vpp dpkg-query -W fastacl-plugin" 2>/dev/null | awk '{print $2}')

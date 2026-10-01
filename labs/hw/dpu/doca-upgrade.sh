@@ -32,14 +32,32 @@ curl -fsSL "$REPO/nvidia-doca-debian-gpg-public-key.asc" | gpg --dearmor |
   sudo tee /etc/apt/trusted.gpg.d/nvidia-doca.gpg >/dev/null
 echo "deb [signed-by=/etc/apt/trusted.gpg.d/nvidia-doca.gpg] $REPO ./" | sudo tee "$list" >/dev/null
 sudo apt-get update -qq
+settle() {
+  for k in /lib/modules/*/; do sudo depmod -a "$(basename "$k")" 2>/dev/null || true; done
+  sudo -E dpkg --configure -a
+}
+settle
 opts=(-y -q -o Dpkg::Options::=--force-confold -o Dpkg::Options::=--force-confdef)
-sudo -E apt-get install "${opts[@]}" doca-runtime bf-release bf-fwbundle
-sudo -E apt-get upgrade "${opts[@]}"
-sudo -E /opt/mellanox/mlnx-fw-updater/mlnx_fw_updater.pl
+sudo -E apt-get install "${opts[@]}" doca-runtime bf-release bf-fwbundle || settle
+sudo -E apt-get full-upgrade "${opts[@]}" || settle
+settle
+kver=$(dpkg-query -W -f='${Depends}' linux-image-bluefield | grep -o 'linux-image-[0-9.-]*-bluefield' | head -1)
+kver=${kver#linux-image-}
+[ -f "/boot/vmlinuz-$kver" ] && [ -f "/boot/initrd.img-$kver" ] ||
+  { echo "kernel $kver or its initramfs missing in /boot" >&2; exit 1; }
+modinfo -k "$kver" mlx5_core >/dev/null || { echo "no mlx5_core for kernel $kver" >&2; exit 1; }
+echo "boot kernel: $kver, mlx5_core $(modinfo -k "$kver" -F version mlx5_core)"
 sudo bfrec --capsule
 sync
 REMOTE
 
-say "packages, NIC firmware and boot image staged; cold power cycle to load them"
+say "packages and boot image staged; cold power cycle into the new kernel"
+"$HW/bf-mode.sh" cycle || exit 1
+say "booted: $(state)"
+
+$SSH "$ARM" 'set -e; sudo -n flint -d 03:00.0 q >/dev/null
+  sudo -n /opt/mellanox/mlnx-fw-updater/mlnx_fw_updater.pl 2>&1 | grep -vi "locale"; sync' ||
+  { say "NIC firmware update failed"; exit 1; }
+say "NIC firmware staged; cold power cycle to activate it"
 "$HW/bf-mode.sh" cycle || exit 1
 say "after: $(state)"

@@ -46,7 +46,10 @@ other_users() {
 }
 
 read -r current next <<<"$(mode_cols)"
-[ -n "${current:-}" ] || { say "cannot read INTERNAL_CPU_MODEL on the BlueField-3 Arm"; exit 1; }
+if [ -z "${current:-}" ]; then
+  [ "$WANT" = cycle ] || { say "cannot read INTERNAL_CPU_MODEL on the BlueField-3 Arm"; exit 1; }
+  say "INTERNAL_CPU_MODEL unreadable before the cycle; continuing"
+fi
 [ "$WANT" = cycle ] && WANT_VAL="$current"
 say "current=$current next-boot=$next want=$WANT_VAL"
 [ "$WANT" != cycle ] && [ "$current" = "$WANT_VAL" ] && { say "already in $WANT mode"; exit 0; }
@@ -73,7 +76,10 @@ wait_new_boot "$HOST" "$host_boot" "${DUT_HOST%%.*}" || exit 1
 wait_new_boot "$ARM" "$arm_boot" "BlueField-3 Arm" || exit 1
 
 read -r current next <<<"$(mode_cols)"
-[ "${current:-}" = "$WANT_VAL" ] || { say "mode is still ${current:-unknown} after the cycle"; exit 1; }
+if [ -n "$WANT_VAL" ] && [ "${current:-}" != "$WANT_VAL" ]; then
+  say "mode is ${current:-unknown} after the cycle, expected $WANT_VAL"; exit 1
+fi
+WANT_VAL="${current:-}"
 if [ "$WANT_VAL" = "EMBEDDED_CPU(1)" ]; then
   for _ in $(seq 1 20); do
     [ "$($SSH "$ARM" "ip -br link | grep -cE '^p[01] '" 2>/dev/null)" = 2 ] && break
