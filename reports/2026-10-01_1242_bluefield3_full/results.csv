@@ -1,0 +1,8 @@
+ts,dut,gen,bench,sweep,scenario,rules,nrules,attack,frame,flows,offered_mpps,dut_mpps,tx_mpps,nic_lost_pct,cyc_pkt,tuples,floor,max_cyc,max_nic_lost_pct,max_tuples,verdict,detail
+1790857832,bluefield3,lava,dpu,,udp drop 64,1,,udp-rand,64 B,,,54.6,,,15.7,,45,,,,PASS,
+1790857955,bluefield3,lava,dpu,,udp drop 128,1,,udp-rand,128 B,,,49,,,16,,,,,,INFO,
+1790858080,bluefield3,lava,dpu,,udp drop 256,1,,udp-rand,256 B,,,44.2,,,15.3,,,,,,INFO,
+1790858203,bluefield3,lava,dpu,,udp drop 512,1,,udp-rand,512 B,,,23.4,,,15.5,,,,,,INFO,
+1790858325,bluefield3,lava,dpu,,udp drop 1024,1,,udp-rand,1024 B,,,12,,,16.2,,,,,,INFO,
+1790858446,bluefield3,lava,dpu,,udp drop 1500,1,,udp-rand,1500 B,,,8.2,,,16.7,,7,,,,PASS,
+1790858569,bluefield3,lava,dpu,,udp drop imix,1,,cold-scan-imix,IMIX 7:4:1,,,33,,,15.4,,28,,,,PASS,
