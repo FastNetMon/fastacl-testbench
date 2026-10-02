@@ -104,6 +104,8 @@ SECTIONS = [
         ("scenario", "rules"), ("attack", "traffic"), ("offered_mpps", "requested Mpps (both ports)"),
         ("arrived_mpps", "arrived at the DUT NIC Mpps"), ("dut_mpps", "absorbed Mpps"), ("nic_lost_pct", "NIC loss %"), ("cyc_pkt", "cycles/pkt"),
         ("detail", "detail")]),
+    ("thermal", "NIC temperature during the run (mlx5 ASIC sensor; the run stops at the limit)", [
+        ("scenario", "host"), ("max_temp_c", "max °C"), ("limit_c", "limit °C")]),
     ("pair", "Generator pair ceiling: 64 B-1518 B UDP at the maximum rate, one port and both ports", [
         ("scenario", "direction"), ("ports", "ports"), ("frame", "frame"), ("tx_mpps", "sent Mpps"),
         ("tx_gbps", "sent Gbps (L1)"), ("rx_mpps", "received Mpps"),

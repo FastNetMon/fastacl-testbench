@@ -90,12 +90,19 @@ report() {
 }
 
 rm -f "$RESULTS_FILE"; mkdir -p "$(dirname "$RESULTS_FILE")"
+"$HW/nic-temp-guard.sh" $$ &
+GUARD=$!
 if [ "$SUITE" = pair ]; then
   say "suite pair"; "$HW/pair-ceiling.sh"
 elif fetch_bundle; then
   if [ "${DUT_KIND:-host}" = dpu ]; then say "suite $SUITE"; "$HW/suite.sh" "$SUITE"; else host_run; fi
 else
   fail_row "release bundle"
+fi
+kill -TERM "$GUARD" 2>/dev/null; wait "$GUARD" 2>/dev/null
+if [ -f "$(dirname "$RESULTS_FILE")/thermal-stop" ]; then
+  say "thermal stop: $(cat "$(dirname "$RESULTS_FILE")/thermal-stop"); the report is kept local, not published"
+  PUBLISH=0
 fi
 report; rc=$?
 if [ "${DUT_KIND:-host}" != dpu ] && [ "$SUITE" != pair ] && [ "${TEARDOWN:-1}" = 1 ]; then
