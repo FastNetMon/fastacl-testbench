@@ -5,6 +5,8 @@ services:
       - PYTHONDONTWRITEBYTECODE=1
       - DUT=${DUT:-server1}
       - DUT_BF_MODE=${DUT_BF_MODE:-}
+      - DUT_DRIVER=${DUT_DRIVER:-}
+      - DUT_RDMA_MODE=${DUT_RDMA_MODE:-}
       - DUT_POLL_WORKERS=${DUT_POLL_WORKERS:-}
       - DUT_NUM_QUEUES=${DUT_NUM_QUEUES:-}
       - DUT_RX_DESC=${DUT_RX_DESC:-}

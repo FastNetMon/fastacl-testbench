@@ -78,6 +78,7 @@ fi
 echo ">> Starting DUT VPP container from ~/${HOST_REPO:-fastacl} (graceful scripts)..."
 $SSH "$DUT" "HOST_REPO='${HOST_REPO:-fastacl}' DUT='${DUT_SEL:-server1}' \
    DUT_BF_MODE='${DUT_BF_MODE:-}' DUT_POLL_WORKERS='${DUT_POLL_WORKERS:-}' \
+   DUT_DRIVER='${DUT_DRIVER:-}' DUT_RDMA_MODE='${DUT_RDMA_MODE:-}' \
    DUT_NUM_QUEUES='${DUT_NUM_QUEUES:-}' DUT_RX_DESC='${DUT_RX_DESC:-}' \
    DUT_TX_DESC='${DUT_TX_DESC:-}' \
    FASTACL_CMAKE_EXTRA='${FASTACL_CMAKE_EXTRA:-}' bash -s" >/dev/null 2>&1 <<'REMOTE'
@@ -95,7 +96,7 @@ $SSH "$DUT" "HOST_REPO='${HOST_REPO:-fastacl}' DUT='${DUT_SEL:-server1}' \
   # not necessarily carry the caller's environment into a new session, and a
   # dropped DUT here silently selects the server1 profile -- which drives the
   # wrong PCI addresses and reports itself as stuck NIC firmware.
-  tmux new-session -d -s fastacl-dut "cd '$REPO' && DUT='${DUT:-server1}' DUT_BF_MODE='${DUT_BF_MODE:-}' DUT_POLL_WORKERS='${DUT_POLL_WORKERS:-}' DUT_NUM_QUEUES='${DUT_NUM_QUEUES:-}' DUT_RX_DESC='${DUT_RX_DESC:-}' DUT_TX_DESC='${DUT_TX_DESC:-}' FASTACL_CMAKE_EXTRA='${FASTACL_CMAKE_EXTRA:-}' sg docker -c 'DUT=\"\$DUT\" DUT_BF_MODE=\"\$DUT_BF_MODE\" DUT_POLL_WORKERS=\"\$DUT_POLL_WORKERS\" DUT_NUM_QUEUES=\"\$DUT_NUM_QUEUES\" DUT_RX_DESC=\"\$DUT_RX_DESC\" DUT_TX_DESC=\"\$DUT_TX_DESC\" FASTACL_CMAKE_EXTRA=\"\$FASTACL_CMAKE_EXTRA\" docker compose -f labs/hw/compose.yaml run --rm dut' 2>&1 | tee '$HOME/dut-boot.log'; sync"
+  tmux new-session -d -s fastacl-dut "cd '$REPO' && DUT='${DUT:-server1}' DUT_BF_MODE='${DUT_BF_MODE:-}' DUT_DRIVER='${DUT_DRIVER:-}' DUT_RDMA_MODE='${DUT_RDMA_MODE:-}' DUT_POLL_WORKERS='${DUT_POLL_WORKERS:-}' DUT_NUM_QUEUES='${DUT_NUM_QUEUES:-}' DUT_RX_DESC='${DUT_RX_DESC:-}' DUT_TX_DESC='${DUT_TX_DESC:-}' FASTACL_CMAKE_EXTRA='${FASTACL_CMAKE_EXTRA:-}' sg docker -c 'DUT=\"\$DUT\" DUT_BF_MODE=\"\$DUT_BF_MODE\" DUT_DRIVER=\"\$DUT_DRIVER\" DUT_RDMA_MODE=\"\$DUT_RDMA_MODE\" DUT_POLL_WORKERS=\"\$DUT_POLL_WORKERS\" DUT_NUM_QUEUES=\"\$DUT_NUM_QUEUES\" DUT_RX_DESC=\"\$DUT_RX_DESC\" DUT_TX_DESC=\"\$DUT_TX_DESC\" FASTACL_CMAKE_EXTRA=\"\$FASTACL_CMAKE_EXTRA\" docker compose -f labs/hw/compose.yaml run --rm dut' 2>&1 | tee '$HOME/dut-boot.log'; sync"
 REMOTE
 
 MISS_LIMIT=3

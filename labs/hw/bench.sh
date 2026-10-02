@@ -51,7 +51,22 @@ load_scenario_or_die() {
   fi
 }
 
+nic_rdma_raw() {
+  $SSH "$DUT_SSH" "IFL='$SERVER_KERNEL_IFACE0' IFR='$SERVER_KERNEL_IFACE1' bash -s" 2>/dev/null <<'REMOTE'
+ethtool -S "$IFL" | awk '$1 == "rx_packets_phy:" {rp = $2} $1 == "rx_prio0_buf_discard:" {pd = $2}
+  $1 == "rx_out_of_buffer:" {ob = $2} END {printf "%d %d %d ", rp, pd, ob}'
+ethtool -S "$IFR" | awk '$1 == "tx_packets_phy:" {printf "%d ", $2}'
+cid=$(sg docker -c "docker ps -q --filter name=hw-dut" | head -1)
+sg docker -c "docker exec $cid vppctl -s /run/vpp/cli.sock show interface eth-left" |
+  awk '/rx packets/ {print $NF; exit}'
+REMOTE
+}
+
 nic_snap() {
+  if [ "${DUT_DRIVER:-dpdk}" = rdma ]; then
+    nic_rdma_raw | awk '{print $1, $5}'
+    return
+  fi
   dut_exec "vppctl -s /run/vpp/cli.sock show hardware detail" 2>/dev/null |
     awk '/rx_phy_packets/ && !p {p=$2} /rx_good_packets/ && !g {g=$2}
          END {print (p?p:0), (g?g:0)}'
@@ -473,6 +488,10 @@ cmd_psample() {
 # interface, so track which block a counter belongs to rather than taking the
 # first match -- ingress and egress carry the same counter names.
 nic_snap_pair() {
+  if [ "${DUT_DRIVER:-dpdk}" = rdma ]; then
+    nic_rdma_raw | awk '{print $1, $5, $2, $3, $4}'
+    return
+  fi
   dut_exec "vppctl -s /run/vpp/cli.sock show hardware detail" 2>/dev/null |
     awk -v L=eth-left -v R=eth-right '
       { sub(/\r$/, "") }        # vppctl over ssh emits CRLF
@@ -630,6 +649,7 @@ cmd_rig() {
     vpp_workers="$workers" rx_desc="$DUT_RX_DESC" tx_desc="$DUT_TX_DESC" \
     trex_version="${TREX_VERSION:-3.06}" target_mpps="$TREX_TARGET_MPPS" \
     target_gbps_mixed="$TREX_TARGET_GBPS_MIXED" licence="$lic_kind" licence_expires="$lic_expires" \
+    dut_driver="$([ "${DUT_DRIVER:-dpdk}" = rdma ] && echo "rdma ${DUT_RDMA_MODE:-dv}" || echo dpdk)" \
     verdict=INFO
   printf '%-18s %s\n' DUT "$dut_cpu ($dut_cores CPUs), $dut_nic, $link, kernel $dut_kernel" \
     generator "$gen_cpu ($gen_cores CPUs), $gen_nic" VPP "$vpp_ver, $workers workers" \

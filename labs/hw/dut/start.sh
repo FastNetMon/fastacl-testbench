@@ -136,6 +136,24 @@ sed -e "s|__IF_LEFT__|eth-left|g" \
     -e "s|__RECEIVER_MAC__|$RECEIVER_MAC|g" \
     "$CONF_DIR/setup.vpp" > "$RUNTIME_SETUP"
 
+if [ "${DUT_DRIVER:-dpdk}" = rdma ]; then
+  _ifl=$(ls /sys/bus/pci/devices/"$DUT_PCI_LEFT"/net 2>/dev/null | head -1)
+  _ifr=$(ls /sys/bus/pci/devices/"$DUT_PCI_RIGHT"/net 2>/dev/null | head -1)
+  [ -n "$_ifl" ] && [ -n "$_ifr" ] || { echo "ERROR: no kernel netdev for $DUT_PCI_LEFT / $DUT_PCI_RIGHT" >&2; exit 1; }
+  ip link set "$_ifl" up; ip link set "$_ifr" up
+  echo "NIC driver: VPP rdma (${DUT_RDMA_MODE:-dv}) on $_ifl / $_ifr"
+  awk '/^dpdk *\{/ {skip = 1} skip {if (/^\}/) skip = 0; next}
+       /^plugins *\{/ {print; print "  plugin dpdk_plugin.so { disable }"; print "  plugin rdma_plugin.so { enable }"; next}
+       {print}' "$RUNTIME_CONF" > "$RUNTIME_CONF.rdma" && mv "$RUNTIME_CONF.rdma" "$RUNTIME_CONF"
+  {
+    for _p in "eth-left $_ifl" "eth-right $_ifr"; do
+      read -r _n _i <<<"$_p"
+      echo "create interface rdma host-if $_i name $_n num-rx-queues $DUT_NUM_QUEUES rx-queue-size $DUT_RX_DESC tx-queue-size $DUT_TX_DESC mode ${DUT_RDMA_MODE:-dv}"
+    done
+    cat "$RUNTIME_SETUP"
+  } > "$RUNTIME_SETUP.rdma" && mv "$RUNTIME_SETUP.rdma" "$RUNTIME_SETUP"
+fi
+
 vpp_pre_start /run/vpp/cli.sock /run/vpp/api.sock /run/vpp/stats.sock
 
 echo "Checking NIC firmware state..."
