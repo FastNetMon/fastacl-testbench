@@ -39,6 +39,21 @@ or `hw-line-rate.yml` with `dut=bluefield3` (or `dut=all`). The `bluefield3` pro
    uplinks to OVS.
 4. `labs/hw/bf-mode.sh nic` on exit, so every run leaves the card in NIC mode for epyc-sp5.
 
+## NIC driver
+
+VPP drives the uplinks with DPDK by default. `DUT_DRIVER=rdma` uses VPP's native mlx5 driver
+(`rdma_plugin.so`, Direct Verbs, no DPDK) instead: the start-up config drops the `dpdk` block,
+and `create interface rdma host-if pN name pN num-rx-queues 12 … mode dv` creates the same
+`p0`/`p1` interfaces, so the cross-connect and the filter are unchanged. `DUT_RDMA_MODE=ibv`
+selects the plain verbs path. The rate is then read from VPP's interface counter instead of
+the DPDK `rx_good_packets` statistic; both drivers also record the NIC-side loss from
+`ethtool -S p1` (`rx_packets_phy`). The driver is shown in the report and the reports index.
+
+```
+DUT_DRIVER=rdma labs/hw/run.sh bluefield3 full
+BUNDLE_FILE=/path/to/local-bundle.tar.gz labs/hw/run.sh bluefield3 full   # a bundle not on a release
+```
+
 ## Notes
 
 - Only 2 MB hugetlbfs is mounted on the BlueField OS; there is no 1 GB mount.

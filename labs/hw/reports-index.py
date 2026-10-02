@@ -57,7 +57,8 @@ def main():
         dut = rig.get("dut") or (parts[2] if len(parts) > 3 else "")
         suite = parts[-1]
         lines.append(f"| [{name}]({name}/) | {dut} | {suite} | {rig.get('plugin_version', '')} | "
-                     f"{rig.get('vpp_version', '')} | {dut_software(rig)} | "
+                     f"{rig.get('vpp_version', '')}"
+                     f"{' · ' + rig['dut_driver'] if rig.get('dut_driver') else ''} | {dut_software(rig)} | "
                      f"{verdict_line(os.path.join(folder, 'report.md'))} |")
     print("\n".join(lines))
 

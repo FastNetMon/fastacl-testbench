@@ -18,6 +18,7 @@ set +a
 . "$HW/vars.sh" >/dev/null 2>&1
 export DUT_SEL="$DUT"
 export RELEASE_TAG="${RELEASE_TAG:-latest-main}"
+[ -n "${BUNDLE_FILE:-}" ] && RELEASE_TAG="local:${BUNDLE_FILE##*/}"
 export TESTBENCH_SHA="${TESTBENCH_SHA:-$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null)$(git -C "$ROOT" diff --quiet HEAD 2>/dev/null || echo -dirty)}"
 [ -n "${GITHUB_RUN_ID:-}" ] && export RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 VPP="${VPP:-2510}"
@@ -35,6 +36,13 @@ fail_row() {
 
 fetch_bundle() {
   local ref="$RELEASE_TAG" asset
+  if [ -n "${BUNDLE_FILE:-}" ]; then
+    say "bundle ${BUNDLE_FILE##*/} (local file)"
+    rm -rf "$ROOT/bundle" && mkdir -p "$ROOT/bundle"
+    tar -xzf "$BUNDLE_FILE" -C "$ROOT/bundle" || return 1
+    ls "$ROOT"/bundle/debs/fastacl-plugin_*.deb
+    return
+  fi
   [ "$ref" = latest-main ] && ref=main
   asset="fastacl-${ref}-vpp${VPP}${BUNDLE_SUFFIX:-}.tar.gz"
   say "bundle $asset from ${FASTACL_REPO:-FastNetMon/fastacl} release $RELEASE_TAG"

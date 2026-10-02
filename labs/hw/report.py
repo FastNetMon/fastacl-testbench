@@ -138,6 +138,7 @@ def rig_table(rig, meta):
         ("DUT NIC", f"{rig.get('dut_nic', '?')}, link {rig.get('link_speed', '?')}"),
         ("DUT kernel", rig.get("dut_kernel", "?")),
         ("DUT software", rig.get("dut_os", "")),
+        ("NIC driver", rig.get("dut_driver", "")),
         ("Generator", f"{rig.get('gen_cpu', '?')} ({fmt(rig.get('gen_cores'))} CPUs), "
                       f"{rig.get('gen_nic', '?')}, TRex {fmt(rig.get('trex_version'))}"),
         ("VPP", f"{rig.get('vpp_version', '?')}, {fmt(rig.get('vpp_workers'))} worker threads"

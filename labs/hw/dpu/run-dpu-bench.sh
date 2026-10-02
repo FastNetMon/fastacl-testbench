@@ -22,6 +22,9 @@ TARGET_MPPS="${TREX_TARGET_MPPS:-142}"
 RESULTS_FILE="${RESULTS_FILE:-$HW/../../results/run.jsonl}"
 FLOOR_64="${FLOOR_64:-45}"; FLOOR_imix="${FLOOR_IMIX:-28}"; FLOOR_1500="${FLOOR_1500:-7}"
 CALIBRATE="${CALIBRATE:-0}"
+DRIVER="${DUT_DRIVER:-dpdk}"
+RDMA_MODE="${DUT_RDMA_MODE:-dv}"
+RXQ="${DPU_WORKERS:-12}"
 
 vpp() { $SSH "$DPU" "docker exec bf3-vpp vppctl -s /run/vpp/cli.sock $*" 2>/dev/null | tr -d '\r'; }
 say() { echo ">> $*"; }
@@ -46,20 +49,36 @@ bringup_dut() {
   say "DPU bring-up (VPP + fastacl from the licensed release bundle)"
   $SSH "$DPU" "sg docker -c 'bash ${DPU_SRC}/labs/hw/dut-image.sh'" ||
     { echo "ERROR: could not build the DUT image from the release bundle on the DPU" >&2; return 1; }
-  $SSH "$DPU" "sed -e 's|__IF_LEFT__|p0|g' -e 's|__IF_RIGHT__|p1|g' \
-     ${DPU_SRC}/labs/hw/dut/conf/setup.vpp > /tmp/fastacl-dpu-setup.vpp"
+  $SSH "$DPU" "DRIVER=$DRIVER RDMA_MODE=$RDMA_MODE RXQ=$RXQ SRC=${DPU_SRC} bash -s" <<'REMOTE'
+set -e
+conf=$SRC/labs/hw/dpu/startup-arm.conf
+: > /tmp/fastacl-dpu-setup.vpp
+if [ "$DRIVER" = rdma ]; then
+  for p in p0 p1; do
+    echo "create interface rdma host-if $p name $p num-rx-queues $RXQ rx-queue-size 4096 tx-queue-size 4096 mode $RDMA_MODE" \
+      >> /tmp/fastacl-dpu-setup.vpp
+  done
+  awk '/^dpdk *\{/ {skip = 1} skip {if (/^\}/) skip = 0; next}
+       /^plugins *\{/ {print; print "  plugin dpdk_plugin.so { disable }"; print "  plugin rdma_plugin.so { enable }"; next}
+       {print}' "$conf" > /tmp/fastacl-dpu-startup.conf
+else
+  cp "$conf" /tmp/fastacl-dpu-startup.conf
+fi
+sed -e 's|__IF_LEFT__|p0|g' -e 's|__IF_RIGHT__|p1|g' $SRC/labs/hw/dut/conf/setup.vpp >> /tmp/fastacl-dpu-setup.vpp
+REMOTE
   $SSH "$DPU" "
     echo 4096 | sudo -n tee /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages >/dev/null
     sudo -n ovs-vsctl del-port ovsbr1 p0 2>/dev/null; sudo -n ovs-vsctl del-port ovsbr2 p1 2>/dev/null
     docker rm -f bf3-vpp >/dev/null 2>&1
     docker run -d --name bf3-vpp --privileged --network host \
       -v ${DPU_SRC}:/src -v /tmp/fastacl-dpu-setup.vpp:/tmp/fastacl-dpu-setup.vpp \
+      -v /tmp/fastacl-dpu-startup.conf:/tmp/fastacl-dpu-startup.conf \
       -v /dev/hugepages:/dev/hugepages -v /run/vpp:/run/vpp -v /dev/infiniband:/dev/infiniband \
       fastacl-dut:current bash -c '
         lic=/src/labs/hw/license/fastacl-license.json
         [ -f \$lic ] || lic=/opt/fastacl/fastacl-license.json
         cp \$lic /tmp/fastacl-lab-license.json; cp \$lic.sig /tmp/fastacl-lab-license.json.sig
-        exec vpp -c /src/labs/hw/dpu/startup-arm.conf' >/dev/null 2>&1"
+        exec vpp -c /tmp/fastacl-dpu-startup.conf' >/dev/null 2>&1"
   local n=0
   for _ in $(seq 1 12); do
     sleep 5
@@ -71,7 +90,7 @@ bringup_dut() {
     $SSH "$DPU" "docker logs --tail 40 bf3-vpp 2>&1; docker exec bf3-vpp tail -40 /tmp/vpp-bf3.log 2>&1" >&2
     return 1
   fi
-  say "VPP up: $(vpp show version | head -1)"
+  say "VPP up: $(vpp show version | head -1), driver $(driver_label)"
 }
 
 rig() {
@@ -94,8 +113,8 @@ rig() {
     dut_kernel="$kernel" dut_os="$dut_os" dut_nic="$nic" link_speed="$link" gen_cpu="$gcpu" gen_cores="$gcores" \
     gen_nic="$gnic" vpp_version="$vpp_ver" plugin_version="$plugin" vpp_workers="$workers" rx_desc=4096 tx_desc=4096 \
     trex_version="${TREX_VERSION:-3.06}" target_mpps="$TARGET_MPPS" licence="$lic_kind" \
-    licence_expires="$lic_exp" verdict=INFO
-  say "rig: ${cpu} x${cores}, $nic, $link; VPP $vpp_ver ($workers workers); fastacl $plugin"
+    licence_expires="$lic_exp" dut_driver="$(driver_label)" verdict=INFO
+  say "rig: ${cpu} x${cores}, $nic, $link; VPP $vpp_ver ($workers workers, $(driver_label)); fastacl $plugin"
 }
 
 gen_alive() {
@@ -123,20 +142,33 @@ switch_attack() {
   sleep 6
 }
 
-rx_good() { vpp show hardware p1 | awk '/rx_good_packets/{print $2}'; }
+driver_label() { [ "$DRIVER" = rdma ] && echo "rdma $RDMA_MODE" || echo dpdk; }
+
+rx_good() {
+  if [ "$DRIVER" = rdma ]; then
+    vpp show interface p1 | awk '/rx packets/ {print $NF; exit}'
+  else
+    vpp show hardware p1 | awk '/rx_good_packets/{print $2}'
+  fi
+}
+
+nic_phy() { $SSH "$DPU" "sudo -n ethtool -S p1" 2>/dev/null | awk '$1 == "rx_packets_phy:" {print $2}'; }
 
 measure_drop_mpps() {
   vpp fastacl rule del all >/dev/null; vpp fastacl rule add order 10 proto 17 action drop >/dev/null
   sleep 4
   local g0 g1 t0 t1
   vpp clear runtime >/dev/null
-  g0=$(rx_good); t0=$(date +%s.%N)
+  local p0 p1
+  p0=$(nic_phy); g0=$(rx_good); t0=$(date +%s.%N)
   sleep "$SAMPLE_SEC"
-  g1=$(rx_good); t1=$(date +%s.%N)
+  g1=$(rx_good); t1=$(date +%s.%N); p1=$(nic_phy)
   local cyc
   cyc=$(vpp show runtime | awk '$1 ~ /^fastacl-filter/ {v += $4; c += $4 * $6} END {if (v) printf "%.1f", c / v}')
-  awk -v a="${g0:-0}" -v b="${g1:-0}" -v s="$t0" -v e="$t1" -v c="${cyc:-}" \
-    'BEGIN{printf "%.1f %s", (b-a)/(e-s)/1e6, c}'
+  awk -v a="${g0:-0}" -v b="${g1:-0}" -v s="$t0" -v e="$t1" -v c="${cyc:--}" \
+      -v pa="${p0:-0}" -v pb="${p1:-0}" \
+    'BEGIN{phy = pb - pa; lost = (phy > 0) ? sprintf("%.3f", (phy - (b - a)) * 100 / phy) : "-"
+           printf "%.1f %s %s", (b-a)/(e-s)/1e6, c, lost}'
 }
 
 measure_trials() {
@@ -145,21 +177,22 @@ measure_trials() {
     out+="$(measure_drop_mpps)"$'\n'
   done
   printf '%s' "$out" | sort -n -k1,1 | awk '
-    {m[NR] = $1; c[NR] = $2}
-    END {k = int((NR + 1) / 2); printf "%s %s %s %s", m[k], c[k], m[1], m[NR]}'
+    {m[NR] = $1; c[NR] = $2; l[NR] = $3}
+    END {k = int((NR + 1) / 2); printf "%s %s %s %s %s", m[k], c[k], m[1], m[NR], l[k]}'
 }
 
 record() {
-  local frame="$1" attack="$2" mpps cyc lo hi floor verdict=INFO
-  read -r mpps cyc lo hi <<<"$3"
+  local frame="$1" attack="$2" mpps cyc lo hi lost floor verdict=INFO
+  read -r mpps cyc lo hi lost <<<"$3"
+  [ "$cyc" = - ] && cyc=""; [ "$lost" = - ] && lost=""
   floor=$(eval "echo \${FLOOR_$frame:-}")
   if [ -n "$floor" ] && [ "$CALIBRATE" != 1 ]; then
     if awk -v m="$mpps" -v f="$floor" 'BEGIN{exit !(m >= f)}'; then verdict=PASS; else verdict=FAIL; rc=1; fi
   fi
-  echo "  $frame drop: $mpps Mpps (median of $TRIALS, range ${lo:-$mpps}-${hi:-$mpps}), ${cyc:--} ticks/pkt (floor ${floor:--}) $verdict"
+  echo "  $frame drop: $mpps Mpps (median of $TRIALS, range ${lo:-$mpps}-${hi:-$mpps}), ${cyc:--} ticks/pkt, NIC loss ${lost:--}% (floor ${floor:--}) $verdict"
   emit bench=dpu scenario="udp drop ${frame}" frame="$frame" attack="$attack" rules=1 \
     dut_mpps="$mpps" mpps_min="${lo:-$mpps}" mpps_max="${hi:-$mpps}" trials="$TRIALS" \
-    cyc_pkt="${cyc:-}" floor="${floor:-}" verdict="$verdict"
+    cyc_pkt="${cyc:-}" nic_lost_pct="${lost:-}" floor="${floor:-}" verdict="$verdict"
 }
 
 teardown() {
