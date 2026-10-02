@@ -159,16 +159,17 @@ measure_drop_mpps() {
   sleep 4
   local g0 g1 t0 t1
   vpp clear runtime >/dev/null
-  local p0 p1
-  p0=$(nic_phy); g0=$(rx_good); t0=$(date +%s.%N)
+  local p0 p1 tp0 tp1
+  p0=$(nic_phy); tp0=$(date +%s.%N); g0=$(rx_good); t0=$(date +%s.%N)
   sleep "$SAMPLE_SEC"
-  g1=$(rx_good); t1=$(date +%s.%N); p1=$(nic_phy)
+  g1=$(rx_good); t1=$(date +%s.%N); p1=$(nic_phy); tp1=$(date +%s.%N)
   local cyc
   cyc=$(vpp show runtime | awk '$1 ~ /^fastacl-filter/ {v += $4; c += $4 * $6} END {if (v) printf "%.1f", c / v}')
   awk -v a="${g0:-0}" -v b="${g1:-0}" -v s="$t0" -v e="$t1" -v c="${cyc:--}" \
-      -v pa="${p0:-0}" -v pb="${p1:-0}" \
-    'BEGIN{phy = pb - pa; lost = (phy > 0) ? sprintf("%.3f", (phy - (b - a)) * 100 / phy) : "-"
-           printf "%.1f %s %s", (b-a)/(e-s)/1e6, c, lost}'
+      -v pa="${p0:-0}" -v pb="${p1:-0}" -v ps="$tp0" -v pe="$tp1" \
+    'BEGIN{good = (b - a) / (e - s); phy = (pb - pa) / (pe - ps)
+           lost = (phy > 0) ? sprintf("%.2f", (phy > good ? (phy - good) * 100 / phy : 0)) : "-"
+           printf "%.1f %s %s", good / 1e6, c, lost}'
 }
 
 measure_trials() {
