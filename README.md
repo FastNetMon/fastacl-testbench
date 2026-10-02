@@ -24,13 +24,14 @@ docs/            strategy, lab
 - **FastACL CI** (in the FastACL repository) runs the functional suite, sanitizers and
   performance sanity on every push, against builds made with throwaway licence keys.
 - **Hardware runs** are GitHub Actions workflows in this repository: `hw-line-rate`, started
-  manually (gate or full suite, on server1, epyc-sp5 and the bluefield3 DPU). They install the
+  manually (gate or full suite, on server1, epyc-sp5, the bluefield3 DPU, alice and bob); the BNG
+  and generator-pair suites run from `run.sh`. They install the
   licensed FastACL release bundle on the DUT, the same one customers receive. Nothing here
   builds or unlocks FastACL.
-- **One command per rig**: `labs/hw/run.sh <server1|epyc-sp5|bluefield3> <gate|full>` downloads
+- **One command per rig**: `labs/hw/run.sh <server1|epyc-sp5|bluefield3|alice|bob> <gate|full|bng|pair>` downloads
   the release bundle, syncs the lab hosts, switches the BlueField-3 between NIC and DPU mode when
   needed, brings up the DUT and generator, runs the suite, writes the report (published to
-  `reports/` for the full suite only), and tears down. The workflow calls exactly this; it runs the same from any machine
+  `reports/` for the full, bng and pair suites; never for the gate), and tears down. The workflow calls exactly this; it runs the same from any machine
   with `labs/hw/lab.env`, the lab SSH key and `gh` access to the FastACL releases.
 
 ## Where VPP and FastACL come from
@@ -52,7 +53,7 @@ by the CI of the FastACL source repository, [FastNetMon/fastacl](https://github.
      (`fastacl-main-vpp2510.tar.gz`, `fastacl-main-vpp2510-arm64.tar.gz`, ...);
    - every tag `vX.Y.Z` creates a versioned release (`fastacl-vX.Y.Z-vpp2510.tar.gz`, ...).
 
-The workflow inputs `release_tag` (default `latest-main`) and `vpp` (`2510` or `2606`) pick
+The workflow inputs `release_tag` (default `latest-main`) and `vpp` (`2510`, `2606` or `2610`) pick
 the bundle; the rig profile adds the `-arm64` suffix for `bluefield3`.
 
 ## How they reach the DUT

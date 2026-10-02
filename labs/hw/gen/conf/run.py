@@ -220,6 +220,12 @@ def _read_requested_attack():
         return None, None
     return parts[0], (parts[1] if len(parts) > 1 else None)
 
+def _attack_file_mtime():
+    try:
+        return os.stat(ATTACK_FILE).st_mtime_ns
+    except FileNotFoundError:
+        return None
+
 def main():
     action = sys.argv[1] if len(sys.argv) > 1 else "start"
 
@@ -242,6 +248,7 @@ def main():
                 f.write(current + "\n")
         except OSError:
             pass
+        seen = _attack_file_mtime()
 
         print(f"TRex traffic started on port 0 at {current_rate} "
               f"({n_streams} streams, attack={current}, "
@@ -251,8 +258,10 @@ def main():
         while True:
             wanted, wanted_rate = _read_requested_attack()
             wanted_rate = wanted_rate or TREX_RATE
+            mtime = _attack_file_mtime()
             try:
-                if wanted and (wanted != current or wanted_rate != current_rate):
+                if wanted and (wanted != current or wanted_rate != current_rate or mtime != seen):
+                    seen = mtime
                     print(f"\n[{time.strftime('%H:%M:%S')}] swap {current}@{current_rate}"
                           f" → {wanted}@{wanted_rate}")
                     n_streams = _load_attack(c, wanted, wanted_rate)

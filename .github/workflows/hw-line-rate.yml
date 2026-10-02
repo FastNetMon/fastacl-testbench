@@ -8,7 +8,7 @@ on:
     inputs:
       dut:
         type: choice
-        options: [server1, epyc-sp5, bluefield3, all]
+        options: [server1, epyc-sp5, bluefield3, alice, bob, all]
         default: server1
       suite:
         type: choice
@@ -19,7 +19,7 @@ on:
         default: latest-main
       vpp:
         type: choice
-        options: ["2510", "2606"]
+        options: ["2510", "2606", "2610"]
         default: "2510"
       calibrate:
         type: boolean
@@ -38,7 +38,7 @@ jobs:
       - id: p
         run: |
           case "${{ inputs.dut || 'all' }}" in
-            all) echo 'profiles=["server1","epyc-sp5","bluefield3"]' >> "$GITHUB_OUTPUT" ;;
+            all) echo 'profiles=["server1","epyc-sp5","bluefield3","alice","bob"]' >> "$GITHUB_OUTPUT" ;;
             *)   echo 'profiles=["${{ inputs.dut }}"]' >> "$GITHUB_OUTPUT" ;;
           esac
 
@@ -48,6 +48,7 @@ jobs:
     timeout-minutes: 360
     permissions:
       contents: write
+      packages: read
     strategy:
       fail-fast: false
       max-parallel: 1
@@ -80,13 +81,15 @@ jobs:
           tailscale status | head -40
           resolvectl status 2>/dev/null | sed -n '1,25p' || cat /etc/resolv.conf
           . labs/hw/vars.sh >/dev/null 2>&1
-          for h in "$LAB_HOST_server1" "$LAB_HOST_epyc" "$LAB_HOST_lava" "$LAB_HOST_flame" "$LAB_HOST_bluefield3" "${LAB_PROXY#*@}"; do
+          for h in "$LAB_HOST_server1" "$LAB_HOST_epyc" "$LAB_HOST_lava" "$LAB_HOST_flame" "$LAB_HOST_bluefield3" "$LAB_HOST_alice" "$LAB_HOST_bob" "${LAB_PROXY#*@}"; do
             echo "== $h: tailscale ip=$(tailscale ip -4 "${h%%.*}" 2>&1 | head -1) getent=$(getent hosts "$h" | awk '{print $1}')"
             tailscale ping -c 1 --timeout 5s "${h%%.*}" 2>&1 | tail -1
           done
 
       - name: ${{ matrix.profile }} ${{ inputs.suite || 'gate' }}
         id: run
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: labs/hw/run.sh "${{ matrix.profile }}" "${{ inputs.suite || 'gate' }}"
 
       - name: Upload the report

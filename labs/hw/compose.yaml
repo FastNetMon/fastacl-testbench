@@ -25,9 +25,11 @@ services:
     command: /src/labs/hw/dut/start.sh
 
   gen:
+    image: ${GEN_IMAGE:-hw-gen}
+    pull_policy: never
     build:
       context: ../..
-      dockerfile: docker/Dockerfile.trex
+      dockerfile: ${GEN_DOCKERFILE:-docker/Dockerfile.trex}
     environment:
       - PYTHONDONTWRITEBYTECODE=1
       - GEN=${GEN:-flame}
@@ -36,6 +38,8 @@ services:
       - TREX_RATE=${TREX_RATE:-}
       - TREX_PKTSIZE=${TREX_PKTSIZE:-}
       - TREX_ATTACK=${TREX_ATTACK:-}
+      - GEN_IDLE=${GEN_IDLE:-}
+      - TREX_CORES=${TREX_CORES:-}
     volumes:
       - ../..:/src
       - /dev/hugepages:/dev/hugepages

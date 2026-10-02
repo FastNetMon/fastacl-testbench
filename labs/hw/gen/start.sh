@@ -66,6 +66,7 @@ sed \
     -e "s|__TREX_SOCKET__|${TREX_SOCKET:-0}|g" \
     -e "s|__TREX_WORKER_LIST__|$TREX_WORKER_LIST|g" \
     "$CONF_DIR/trex_cfg.yaml.tmpl" > /etc/trex_cfg.yaml
+[ -n "${TREX_PORT_MTU:-}" ] && sed -i "/^  version /a\\  port_mtu        : $TREX_PORT_MTU" /etc/trex_cfg.yaml
 
 echo "Rendered /etc/trex_cfg.yaml (workers: $TREX_WORKER_LIST, count: $TREX_WORKER_COUNT)"
 
@@ -79,7 +80,7 @@ rm -f /dev/hugepages/rtemap_* 2>/dev/null || true
 
 echo "Starting t-rex-64..."
 cd "$TREX_DIR"
-./t-rex-64 -i --iom 0 --no-scapy-server --no-ofed-check --no-watchdog -c "$TREX_WORKER_COUNT" > /tmp/trex.log 2>&1 &
+./t-rex-64 -i --iom 0 --no-scapy-server --no-ofed-check --no-watchdog -c "${TREX_CORES:-$TREX_WORKER_COUNT}" > /tmp/trex.log 2>&1 &
 TREX_PID=$!
 echo "TRex PID: $TREX_PID"
 
@@ -104,6 +105,7 @@ PYEOF
   sleep 2
 done
 echo "TRex API ready."
+[ "${GEN_IDLE:-0}" = 1 ] && { echo "GEN_IDLE=1: TRex left idle for an external client."; wait "$TREX_PID"; exit $?; }
 
 # TRex's percentage multiplier is a share of the port's LINE rate, so the right
 # way to offer exactly TREX_TARGET_GBPS on any card is (target / link speed).

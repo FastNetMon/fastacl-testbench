@@ -4,11 +4,11 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 ROLE="${1:-}"
-case "$ROLE" in lava|flame|dell) export GEN="$ROLE" ;; esac
+case "$ROLE" in lava|flame|dell|alice|bob) export GEN="$ROLE" ;; esac
 source "$SCRIPT_DIR/../vars.sh"
 
-if [[ ! "$ROLE" =~ ^(sender|dut|receiver|lava|flame|dell)$ ]]; then
-  echo "Usage: $0 [sender|dut|receiver|lava|flame|dell]"
+if [[ ! "$ROLE" =~ ^(sender|dut|receiver|lava|flame|dell|alice|bob)$ ]]; then
+  echo "Usage: $0 [sender|dut|receiver|lava|flame|dell|alice|bob]"
   exit 1
 fi
 
@@ -91,7 +91,7 @@ echo "[2/4] DPDK NIC binding..."
 if [ "$DPDK_DRIVER" = "mlx5" ]; then
   case "$ROLE" in
     dut)      PCIDEVS="$DUT_PCI_LEFT $DUT_PCI_RIGHT" ;;
-    sender|lava|flame|dell) PCIDEVS="$SENDER_PCI $RECEIVER_PCI" ;;
+    sender|lava|flame|dell|alice|bob) PCIDEVS="$SENDER_PCI $RECEIVER_PCI" ;;
     receiver) PCIDEVS="$RECEIVER_PCI" ;;
     *) PCIDEVS="" ;;
   esac
@@ -134,7 +134,7 @@ else
     receiver)
       PCIDEVS="$RECEIVER_PCI"
       ;;
-    lava|flame|dell)
+    lava|flame|dell|alice|bob)
       PCIDEVS="$SENDER_PCI $RECEIVER_PCI"
       ;;
   esac

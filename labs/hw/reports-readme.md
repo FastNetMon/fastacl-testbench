@@ -1,7 +1,7 @@
 # FastACL hardware bench reports
 
-Every **full-suite** run of the `hw-line-rate` workflow (or of `labs/hw/run.sh <rig> full`)
-publishes one folder here, named `<date>_<time UTC>_<rig>_<suite>`. Gate runs are not
+Every **full**, **bng** and **pair** run of `labs/hw/run.sh <rig> <suite>` (the `hw-line-rate`
+workflow runs the full suite) publishes one folder here, named `<date>_<time UTC>_<rig>_<suite>`. Gate runs are not
 published; they keep their report in the workflow summary and as a run artifact.
 
 Each run measures the **licensed FastACL release bundle** that customers receive, on one of the
@@ -13,6 +13,14 @@ reference rigs. Methodology, topology and thresholds: [test strategy](../docs/te
 | `server1` | AMD EPYC 7742 (64 cores), ConnectX-7, VPP on x86 | Ryzen 7 5800X + ConnectX-7, TRex |
 | `epyc-sp5` | AMD EPYC 9534 (64 cores), BlueField-3 in NIC mode, VPP on x86 | Ryzen 9 9950X + 2× ConnectX-5 Ex, TRex |
 | `bluefield3` | BlueField-3 Arm (16× Cortex-A78AE) in DPU mode, VPP on the Arm cores | Ryzen 9 9950X + 2× ConnectX-5 Ex, TRex |
+| `alice` | Ryzen 9 9950X (16 cores), ConnectX-8 at 400G, VPP on x86 (15 workers) | bob: Ryzen 9 9950X + ConnectX-8, TRex built from source |
+| `bob` | Ryzen 9 9950X (16 cores), ConnectX-8 at 400G, VPP on x86 (15 workers) | alice: Ryzen 9 9950X + ConnectX-8, TRex built from source |
+
+| Suite | What it measures |
+|---|---|
+| `full` | the gates plus every sweep: rules, attacks, scenarios, active flows, frame sizes |
+| `bng` | on `bluefield3`: a routed subscriber pipeline (per-subscriber rate limit, NAT44-ED) on the Arm cores |
+| `pair` | on `alice`/`bob`: what the two TRex hosts send and receive, 64 B to 1518 B, one port and both |
 
 ## What is in a report folder
 
@@ -70,6 +78,8 @@ This is the source the other two files are generated from (`labs/hw/report.py`).
 | `ceiling` | ingress vs egress budget of the rig (generator capability) |
 | `survey` | one point of a sweep, recorded without a verdict |
 | `dpu` | BlueField-3 drop rate on the Arm cores for one frame size |
+| `bng` | one BNG pipeline point: forwarded and received Mpps, NIC loss, per-packet ticks of the filter, NAT and whole graph, RSS hash, workers receiving |
+| `pair` | one generator-pair point: direction, ports, frame, sent and received Mpps, receiver drops |
 | `load` | a setup step that failed (bring-up, rule load, mode switch); always `FAIL` |
 
 ## Units and conventions

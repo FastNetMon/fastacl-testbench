@@ -31,8 +31,20 @@ case "$DUT" in
     # power cycle -- see setup/mellanox-init.sh --bf-mode.
     DUT_BF_MODE="${DUT_BF_MODE:-nic}"
     ;;
+  alice|bob)
+    DUT_HOST_VAR="LAB_HOST_$DUT"; DUT_HOST="${!DUT_HOST_VAR:-}"
+    DUT_PCI_0="0000:01:00.0"; DUT_IFACE_0="enp1s0f0np0"
+    DUT_PCI_1="0000:01:00.1"; DUT_IFACE_1="enp1s0f1np1"
+    DUT_INGRESS_DEFAULT="0000:01:00.1"
+    _l="LAB_MAC_LEFT_$DUT"; _r="LAB_MAC_RIGHT_$DUT"
+    DUT_LEFT_MAC_DEFAULT="${!_l:-}"
+    DUT_RIGHT_MAC_DEFAULT="${!_r:-}"
+    DUT_IPMI_HOST=""; DUT_IPMI_USER=""; DUT_IPMI_PASS=""
+    DUT_HUGEPAGES_1G=0
+    DUT_SKIP_OFED=1
+    ;;
   *)
-    echo "vars.sh: unknown DUT='$DUT' (use 'server1' or 'epyc')" >&2
+    echo "vars.sh: unknown DUT='$DUT' (use 'server1', 'epyc', 'alice' or 'bob')" >&2
     return 1 2>/dev/null || exit 1
     ;;
 esac
@@ -92,8 +104,30 @@ case "$GEN" in
     TREX_SOCKET=1
     TREX_HUGEPAGES_2M=4096
     ;;
+  alice|bob)
+    _h="LAB_HOST_$GEN"
+    SENDER_HOST="${!_h:-}"
+    RECEIVER_HOST="${!_h:-}"
+    SENDER_PCI="0000:01:00.1"
+    RECEIVER_PCI="0000:01:00.0"
+    _s="LAB_MAC_SENDER_$GEN"; _r="LAB_MAC_RECEIVER_$GEN"
+    SENDER_MAC="${!_s:-}"
+    RECEIVER_MAC="${!_r:-}"
+    GEN_IFACE0="enp1s0f1np1"
+    GEN_IFACE1="enp1s0f0np0"
+    TREX_MASTER_CORE=0
+    TREX_LATENCY_CORE=16
+    TREX_WORKER_CORES="1-15,17-31"
+    TREX_SOCKET=0
+    TREX_HUGEPAGES_2M=2048
+    GEN_HUGEPAGES_1G=0
+    GEN_SKIP_OFED=1
+    GEN_DOCKERFILE="docker/Dockerfile.trex-src"
+    GEN_IMAGE="ghcr.io/garyachy/fastacl-testbench-trex:27e0153b"
+    TREX_PORT_MTU=9000
+    ;;
   *)
-    echo "vars.sh: unknown GEN='$GEN' (use 'lava', 'flame' or 'dell')" >&2
+    echo "vars.sh: unknown GEN='$GEN' (use 'lava', 'flame', 'dell', 'alice' or 'bob')" >&2
     return 1 2>/dev/null || exit 1
     ;;
 esac
@@ -203,7 +237,7 @@ MIXED_SIZE_ATTACKS="cold-scan-imix mix-sizes"
 TREX_RATE="${TREX_RATE:-}"   # leave empty: derived from the targets above
 TREX_STREAM_MODE="fixed-dst"
 
-HUGEPAGES_NR=32
+HUGEPAGES_NR="${DUT_HUGEPAGES_1G:-32}"
 
 VPP_BIN="/usr/bin/vpp"
 VPPCTL_BIN="/usr/bin/vppctl"

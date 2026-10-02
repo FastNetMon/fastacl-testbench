@@ -408,7 +408,7 @@ gen_restart() {
   [ "$size" -gt 64 ] && mpps=0
   GEN_PKTSIZE="$size"
   $SSH "$GEN_USER" "sg docker -c 'docker ps -aq --filter name=hw-gen | xargs -r docker rm -f' >/dev/null 2>&1
-    cd ~/${HOST_REPO:-fastacl-testbench} && GEN='$GEN' DUT='$DUT' TREX_PKTSIZE='$size' \
+    cd ~/${HOST_REPO:-fastacl-testbench} && GEN='$GEN' DUT='$DUT' GEN_DOCKERFILE='${GEN_DOCKERFILE:-docker/Dockerfile.trex}' GEN_IMAGE='${GEN_IMAGE:-hw-gen}' TREX_PKTSIZE='$size' \
       TREX_TARGET_MPPS='$mpps' sg docker -c 'docker compose -f labs/hw/compose.yaml run -d gen'" \
     >/dev/null 2>&1
   local i up=""

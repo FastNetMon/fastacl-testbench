@@ -100,6 +100,10 @@ SECTIONS = [
         ("flows", "active flows"), ("offered_mpps", "offered Mpps"),
         ("dut_mpps", "absorbed Mpps"), ("nic_lost_pct", "NIC loss %"),
         ("cyc_pkt", "cycles/pkt")]),
+    ("pair", "Generator pair ceiling: 64 B-1518 B UDP at the maximum rate, one port and both ports", [
+        ("scenario", "direction"), ("ports", "ports"), ("frame", "frame"), ("tx_mpps", "sent Mpps"),
+        ("tx_gbps", "sent Gbps (L1)"), ("rx_mpps", "received Mpps"),
+        ("rx_dropped_mpps", "dropped by receiver Mpps"), ("rx_delivered_mpps", "delivered Mpps")]),
     ("bng", "BNG pipeline on the BlueField-3 Arm (routed, per-subscriber policer, NAT44-ED)", [
         ("scenario", "test"), ("pipeline", "pipeline"), ("subscribers", "subscribers"), ("ports", "ports each"),
         ("sessions", "NAT sessions"), ("frame", "frame"), ("rx_mpps", "received Mpps"),
@@ -138,7 +142,39 @@ def enrich(row):
     return row
 
 
+def pair_rig_table(rig, meta):
+    rows = [
+        ("Topology", f"2-node: {meta['gen']} and {meta['dut']} cabled port to port, no switch; each runs TRex"),
+        ("Hosts", f"{rig.get('host_cpu', '?')} ({fmt(rig.get('host_cores'))} CPUs), kernel {rig.get('host_kernel', '?')}"),
+        ("NIC", f"{rig.get('host_nic', '?')}, firmware {rig.get('nic_fw', '?')}, links {rig.get('link_speed', '?')}, "
+                f"PCIe {rig.get('pcie_link', '?')}"),
+        ("TRex", f"{rig.get('trex_version', '?')} ({rig.get('trex_image', '')}), {fmt(rig.get('trex_cores'))} cores"),
+        ("Testbench", meta["testbench"]),
+        ("Run", meta["run_url"] or "local"),
+    ]
+    return ["| | |", "|---|---|"] + [f"| {k} | {v} |" for k, v in rows if v]
+
+
+def pair_method():
+    return [
+        "## Method",
+        "",
+        "- Each host runs TRex. One sends UDP at the highest rate it can on one port or on both, the other "
+        "receives; then the roles swap.",
+        "- Frame sizes include the FCS: 64 B is 84 B on the wire with preamble and gap, and 400 GbE "
+        "carries 595 Mpps of it.",
+        "- The source address increments over 65,536 values so the receiver spreads the load over its "
+        "queues.",
+        "- **sent** and **received** are the NICs' `tx_packets_phy` and `rx_packets_phy` deltas over the "
+        "sample window; **dropped by receiver** is `rx_discards_phy + rx_out_of_buffer` on the receiving "
+        "host; **delivered** is received minus dropped.",
+        "",
+    ]
+
+
 def rig_table(rig, meta):
+    if rig.get("kind") == "pair":
+        return pair_rig_table(rig, meta)
     rows = [
         ("Topology", f"2-node: {meta['gen']} (TRex) cabled back to back to {meta['dut']}, no switch"),
         ("DUT CPU", f"{rig.get('dut_cpu', '?')} ({fmt(rig.get('dut_cores'))} CPUs)"),
@@ -328,7 +364,8 @@ def write_md(rows, meta, path):
              f"{measured} recorded measurements. {when:%Y-%m-%d %H:%M} UTC.", ""]
     lines += rig_table(rig, meta) + [""]
     lines += summary([r for r in rows if r.get("bench") != "rig"], rig)
-    lines += method(rig, {r.get("bench") for r in data})
+    benches = {r.get("bench") for r in data}
+    lines += pair_method() if benches <= {"pair", "rig"} else method(rig, benches)
     for bench, title, cols in SECTIONS:
         group = [r for r in data if r.get("bench") == bench]
         if not group:

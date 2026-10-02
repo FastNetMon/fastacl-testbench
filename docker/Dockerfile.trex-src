@@ -1,0 +1,46 @@
+FROM ubuntu:24.04 AS build
+ENV DEBIAN_FRONTEND=noninteractive
+ARG TREX_REF=27e0153b
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git ca-certificates build-essential python3 zlib1g-dev libnuma-dev libelf-dev \
+    libibverbs-dev rdma-core pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN git clone https://github.com/cisco-system-traffic-generator/trex-core.git /trex-core \
+    && cd /trex-core && git checkout "$TREX_REF" \
+    && sed -i "/'-Werror',/d" linux_dpdk/ws_main.py \
+    && cd linux_dpdk && ./b configure && ./b build -j"$(nproc)"
+
+RUN cp -a /trex-core/scripts /trex-out \
+    && cd /trex-core/scripts \
+    && find . -type l | while read -r l; do \
+         rm -f "/trex-out/$l"; \
+         if [ -e "$l" ]; then cp -rL "$l" "/trex-out/$l"; fi; \
+       done
+
+FROM ubuntu:24.04
+ENV DEBIAN_FRONTEND=noninteractive TREX_DIR=/opt/trex
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wget ca-certificates python3 python3-pip \
+    libibverbs1 ibverbs-providers rdma-core libnuma1 libelf1t64 zlib1g \
+    iproute2 net-tools pciutils libarchive13t64 \
+    htop btop ethtool \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=build /trex-out /opt/trex
+
+RUN sed -i \
+         "s/platform\.linux_distribution(full_distribution_name=False)\[0\]\.lower()/''/g" \
+         /opt/trex/dpdk_nic_bind.py \
+    && sed -i \
+         "s/self\.m_devices\[key\]\['Driver_str'\]/self.m_devices[key].get('Driver_str', '')/g" \
+         /opt/trex/dpdk_setup_ports.py \
+    && { [ -e /opt/trex/automation/trex_control_plane/interactive/imp.py ] \
+         || printf 'import importlib\nreload = importlib.reload\n' \
+              > /opt/trex/automation/trex_control_plane/interactive/imp.py; }
+
+LABEL org.opencontainers.image.source=https://github.com/garyachy/fastacl-testbench
+ENV PATH="/opt/trex:$PATH"
+WORKDIR /opt/trex

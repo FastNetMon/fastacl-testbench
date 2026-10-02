@@ -7,7 +7,7 @@ export LC_ALL=C
 
 HW="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HW/../.." && pwd)"
-PROFILE="${1:?usage: run.sh <server1|epyc-sp5|bluefield3> [gate|full]}"
+PROFILE="${1:?usage: run.sh <server1|epyc-sp5|bluefield3|alice|bob> [gate|full|bng|pair]}"
 SUITE="${2:-gate}"
 export PROFILE SUITE DUT_PROFILE="$PROFILE" HOST_REPO="${HOST_REPO:-fastacl-testbench}"
 
@@ -22,7 +22,7 @@ export RELEASE_TAG="${RELEASE_TAG:-latest-main}"
 export TESTBENCH_SHA="${TESTBENCH_SHA:-$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null)$(git -C "$ROOT" diff --quiet HEAD 2>/dev/null || echo -dirty)}"
 [ -n "${GITHUB_RUN_ID:-}" ] && export RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 VPP="${VPP:-2510}"
-case "$SUITE" in full|bng) PUBLISH="${PUBLISH:-1}" ;; *) PUBLISH="${PUBLISH:-0}" ;; esac
+case "$SUITE" in full|bng|pair) PUBLISH="${PUBLISH:-1}" ;; *) PUBLISH="${PUBLISH:-0}" ;; esac
 export RESULTS_FILE="$ROOT/results/run.jsonl"
 SSH="ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=15"
 GEN_SSH="$LAB_SSH_USER@$SENDER_HOST"
@@ -54,7 +54,7 @@ fetch_bundle() {
 
 start_gen() {
   $SSH "$GEN_SSH" "sg docker -c 'docker ps -aq --filter name=hw-gen | xargs -r docker rm -f' >/dev/null 2>&1
-    cd ~/${HOST_REPO} && GEN='$GEN' DUT='$DUT' TREX_TARGET_MPPS='$TREX_TARGET_MPPS' \
+    cd ~/${HOST_REPO} && GEN='$GEN' DUT='$DUT' GEN_DOCKERFILE='${GEN_DOCKERFILE:-docker/Dockerfile.trex}' GEN_IMAGE='${GEN_IMAGE:-hw-gen}' TREX_TARGET_MPPS='$TREX_TARGET_MPPS' \
       sg docker -c 'docker compose -f labs/hw/compose.yaml run -d gen'" >/dev/null
   sleep 60
 }
@@ -70,6 +70,7 @@ host_run() {
     "$HW/bringup-guarded.sh" --watch-secs 600 && break
     [ "$try" = 2 ] && { fail_row "dut bring-up"; return 1; }
   done
+  say "generator image"; "$HW/gen-image.sh" || { fail_row "generator image"; return 1; }
   say "generator"; start_gen || { fail_row "generator"; return 1; }
   say "suite $SUITE"; "$HW/suite.sh" "$SUITE"
 }
@@ -89,13 +90,15 @@ report() {
 }
 
 rm -f "$RESULTS_FILE"; mkdir -p "$(dirname "$RESULTS_FILE")"
-if fetch_bundle; then
+if [ "$SUITE" = pair ]; then
+  say "suite pair"; "$HW/pair-ceiling.sh"
+elif fetch_bundle; then
   if [ "${DUT_KIND:-host}" = dpu ]; then say "suite $SUITE"; "$HW/suite.sh" "$SUITE"; else host_run; fi
 else
   fail_row "release bundle"
 fi
 report; rc=$?
-if [ "${DUT_KIND:-host}" != dpu ] && [ "${TEARDOWN:-1}" = 1 ]; then
+if [ "${DUT_KIND:-host}" != dpu ] && [ "$SUITE" != pair ] && [ "${TEARDOWN:-1}" = 1 ]; then
   say "teardown"; "$HW/teardown.sh"
 fi
 exit $rc

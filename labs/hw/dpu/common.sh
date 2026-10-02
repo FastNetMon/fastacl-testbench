@@ -139,7 +139,8 @@ start_gen() {
 
 switch_attack() {
   $SSH "$GENS" "CID=\$(sg docker -c 'docker ps -q --filter name=hw-gen' | head -1)
-     sg docker -c \"docker exec -e TREX_ATTACK=$1 \$CID python3 /src/labs/hw/gen/conf/switch.py $1\"" >/dev/null 2>&1
+     sg docker -c \"docker exec -e TREX_ATTACK=$1 \$CID python3 /src/labs/hw/gen/conf/switch.py $1\"" >/dev/null 2>&1 ||
+    { echo "ERROR: generator rejected attack $1" >&2; return 1; }
   sleep 6
 }
 

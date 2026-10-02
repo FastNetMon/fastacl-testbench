@@ -76,6 +76,8 @@ routes `p1` → `p0` and the forwarded rate is read from `p0` tx. Pipelines, eac
 | nat | + NAT44-ED on `p0` as an output feature (after the filter, so rules see subscriber addresses) |
 | bng | policer + nat |
 
+`BNG_ONLY="routed policer nat bng scale accuracy rss"` selects phases (default: all).
+
 Each point records the forwarded and received Mpps (median of `DPU_TRIALS`), NIC-side loss and
 per-packet `show runtime` ticks of the filter, NAT and the whole graph. Session scaling varies
 subscribers × ports at a fixed rule count; the policer accuracy points police 100 subscribers at

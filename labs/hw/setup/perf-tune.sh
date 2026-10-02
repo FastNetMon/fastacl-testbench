@@ -9,11 +9,11 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 ROLE="${1:-}"
-case "$ROLE" in lava|flame|dell) export GEN="$ROLE" ;; esac
+case "$ROLE" in lava|flame|dell|alice|bob) export GEN="$ROLE" ;; esac
 source "$SCRIPT_DIR/../vars.sh"
 
-if [[ ! "$ROLE" =~ ^(lava|flame|dell|dut)$ ]]; then
-  echo "Usage: $0 [lava|flame|dell|dut]"
+if [[ ! "$ROLE" =~ ^(lava|flame|dell|alice|bob|dut)$ ]]; then
+  echo "Usage: $0 [lava|flame|dell|alice|bob|dut]"
   exit 1
 fi
 
@@ -69,7 +69,7 @@ _mrr_1024() {
 }
 
 case "$ROLE" in
-  lava|flame|dell) _mrr_1024 "$SENDER_PCI";  _mrr_1024 "$RECEIVER_PCI"  ;;
+  lava|flame|dell|alice|bob) _mrr_1024 "$SENDER_PCI";  _mrr_1024 "$RECEIVER_PCI"  ;;
   dut)   _mrr_1024 "$DUT_PCI_LEFT"; _mrr_1024 "$DUT_PCI_RIGHT" ;;
 esac
 
@@ -94,7 +94,7 @@ _fc_off() {
 }
 
 case "$ROLE" in
-  lava|flame|dell) _fc_off "$GEN_IFACE0";  _fc_off "$GEN_IFACE1"  ;;
+  lava|flame|dell|alice|bob) _fc_off "$GEN_IFACE0";  _fc_off "$GEN_IFACE1"  ;;
   dut)   _fc_off "$SERVER_KERNEL_IFACE0"; _fc_off "$SERVER_KERNEL_IFACE1" ;;
 esac
 
@@ -153,7 +153,7 @@ _link_100g() {
 }
 
 case "$ROLE" in
-  lava|flame|dell) _link_100g "$GEN_IFACE0";  _link_100g "$GEN_IFACE1"  ;;
+  lava|flame|dell|alice|bob) _link_100g "$GEN_IFACE0";  _link_100g "$GEN_IFACE1"  ;;
   dut)   _link_100g "$SERVER_KERNEL_IFACE0"; _link_100g "$SERVER_KERNEL_IFACE1" ;;
 esac
 

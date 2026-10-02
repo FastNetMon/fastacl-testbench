@@ -31,9 +31,11 @@ line rate. Testing has to show three things:
 | L5 | HW line-rate gate | testbench `hw-line-rate` (`suite=gate`) | on demand | **licensed release bundle** | floors on the reference DUTs (section 6) |
 | L6 | HW full range | testbench `hw-line-rate` (`suite=full`) | on demand, per release | licensed release bundle | the whole matrix of section 5, published |
 | L7 | DPU | testbench `hw-line-rate` (`dut=bluefield3`) | on demand | licensed arm64 release bundle | drop line rate on the BlueField-3 Arm cores |
+| L8 | BNG pipeline | testbench `run.sh bluefield3 bng` | on demand | licensed arm64 release bundle | routed forwarding with a per-subscriber rate limit and NAT44-ED on the Arm cores; policer accuracy |
+| L9 | Generator pair | testbench `run.sh alice pair` | on demand | none (TRex only) | what the alice/bob generators can send and receive, so DUT results are read against it |
 
 L0–L4 need a FastACL build made with throwaway licence keys, so they run in the FastACL source
-repository, next to the code they test. L5–L7 run here, in the `hw-line-rate` workflow of this
+repository, next to the code they test. L5–L9 run here, in the `hw-line-rate` workflow of this
 repository. They install the **same release bundle customers receive**: VPP debs plus a
 plugin that trusts only the production licence key. The DUT therefore runs exactly what is
 shipped, and nothing in this repository can build, fetch or unlock an unlicensed FastACL.
@@ -76,7 +78,8 @@ test (DUT), connected back to back by 100 GbE DACs, with no switch in between.
 |----------|----|-----|----------------|---------|
 | `2n-rome-cx7` | flame1 | server1, AMD EPYC 7742 (Rome) | ConnectX-7, dual port | L5, L6 |
 | `2n-genoa-bf3` | lava1 | epyc-sp5, AMD EPYC 9534 (Genoa) | BlueField-3 in NIC mode (host owns the ports) | L5, L6 |
-| `2n-bf3-arm` | lava1 | BlueField-3 Arm, 16× Cortex-A78 | BlueField-3 in DPU mode (Arm owns the ports) | L7 |
+| `2n-bf3-arm` | lava1 | BlueField-3 Arm, 16× Cortex-A78 | BlueField-3 in DPU mode (Arm owns the ports) | L7, L8 |
+| `2n-zen5-cx8` | bob or alice | alice or bob, AMD Ryzen 9 9950X | ConnectX-8, dual port, 400G | L6, L9 |
 
 The DUT runs **bridged**: an L2 cross-connect with FastACL on the `l2-input` arcs. Lab machines, cabling
 and access are described in `docs/lab.md`.

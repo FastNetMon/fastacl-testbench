@@ -4,11 +4,11 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 ROLE="${1:-}"
-case "$ROLE" in lava|flame|dell) export GEN="$ROLE" ;; esac
+case "$ROLE" in lava|flame|dell|alice|bob) export GEN="$ROLE" ;; esac
 source "$SCRIPT_DIR/../vars.sh"
 
-if [[ ! "$ROLE" =~ ^(lava|flame|dell|dut)$ ]]; then
-  echo "Usage: $0 [lava|flame|dell|dut]"
+if [[ ! "$ROLE" =~ ^(lava|flame|dell|alice|bob|dut)$ ]]; then
+  echo "Usage: $0 [lava|flame|dell|alice|bob|dut]"
   echo "  lava   — packet generator + receiver (lava machine)"
   echo "  flame  — packet generator + receiver (flame machine)"
   echo "  dell   — packet generator + receiver (dell machine)"
@@ -134,8 +134,8 @@ fi
 echo ""
 echo "[4/5] MLNX_OFED (host kernel modules)..."
 
-if [ "$ROLE" != "dut" ] && [ "${GEN_SKIP_OFED:-0}" = "1" ]; then
-  echo "  Skipped for this generator (GEN_SKIP_OFED=1 — inbox mlx5 is sufficient)."
+if { [ "$ROLE" != "dut" ] && [ "${GEN_SKIP_OFED:-0}" = "1" ]; } || { [ "$ROLE" = "dut" ] && [ "${DUT_SKIP_OFED:-0}" = "1" ]; }; then
+  echo "  Skipped for this host (inbox mlx5 is sufficient)."
 elif command -v ofed_info &>/dev/null; then
   echo "  MLNX_OFED already installed: $(ofed_info -s 2>/dev/null || echo unknown)"
 else

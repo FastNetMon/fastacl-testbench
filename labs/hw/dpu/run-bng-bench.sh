@@ -98,7 +98,7 @@ run_point() {
     CUR_GEN="$attack"
   fi
   gen_param bng-subs "$subs"; gen_param bng-ports "$ports"
-  switch_attack "$attack"
+  switch_attack "$attack" || { emit bench=load scenario="generator $scenario" verdict=FAIL; rc=1; return; }
   sleep "$WARM_SEC"
   record "$scenario" "$pipeline" "$subs" "$ports" "$frame" "$rate" "$expected" "$(measure_trials)"
 }
@@ -120,43 +120,68 @@ trap teardown EXIT
 rc=0
 CUR_GEN=""
 
-start_pipeline routed || exit 1
-rig
-run_point "routed" routed 10000 10 64
-run_point "routed" routed 10000 10 imix
+phase_routed() {
+  start_pipeline routed || return 1
+  rig
+  run_point "routed" routed 10000 10 64
+  run_point "routed" routed 10000 10 imix
+}
 
-start_pipeline policer || exit 1
-say "$(load_subscribers 10000 $CONFORM_BPS $CONFORM_BURST)"
-run_point "policer" policer 10000 10 64
-run_point "policer" policer 10000 10 imix
+phase_policer() {
+  start_pipeline policer || return 1
+  say "$(load_subscribers 10000 $CONFORM_BPS $CONFORM_BURST)"
+  run_point "policer" policer 10000 10 64
+  run_point "policer" policer 10000 10 imix
+}
 
-start_pipeline nat || exit 1
-run_point "nat" nat 10000 10 64
-run_point "nat" nat 10000 10 imix
+phase_nat() {
+  start_pipeline nat || return 1
+  run_point "nat" nat 10000 10 64
+  run_point "nat" nat 10000 10 imix
+}
 
-start_pipeline bng || exit 1
-say "$(load_subscribers 10000 $CONFORM_BPS $CONFORM_BURST)"
-run_point "bng" bng 10000 10 64
-run_point "bng" bng 10000 10 imix
-run_point "bng sessions" bng 10000 1 64
+phase_bng() {
+  start_pipeline bng || return 1
+  say "$(load_subscribers 10000 $CONFORM_BPS $CONFORM_BURST)"
+  run_point "bng" bng 10000 10 64
+  run_point "bng" bng 10000 10 imix
+  run_point "bng sessions" bng 10000 1 64
+  run_point "bng sessions" bng 10000 100 64
+}
 
-start_pipeline bng || exit 1
-say "$(load_subscribers 100000 $CONFORM_BPS $CONFORM_BURST)"
-run_point "bng sessions" bng 100000 10 64
+phase_scale() {
+  start_pipeline bng || return 1
+  say "$(load_subscribers 100000 $CONFORM_BPS $CONFORM_BURST)"
+  run_point "bng sessions" bng 100000 10 64
+}
 
-for rate in 10000000 20000000; do
-  start_pipeline bng || exit 1
-  say "$(load_subscribers 100 $rate 16384)"
-  run_point "policer accuracy" bng 100 1 64 "$rate" "$(awk -v r="$rate" 'BEGIN{printf "%.2f", 100 * r / (50 * 8) / 1e6}')"
+phase_accuracy() {
+  local rate
+  for rate in 10000000 20000000; do
+    start_pipeline bng || return 1
+    say "$(load_subscribers 100 $rate 16384)"
+    vpp clear fastacl counters >/dev/null
+    run_point "policer accuracy" bng 100 1 64 "$rate" "$(awk -v r="$rate" 'BEGIN{printf "%.2f", 100 * r / (50 * 8) / 1e6}')"
+    say "policer counters: $(vpp show fastacl aggregate-counters | tr -s ' \n' ' ')"
+  done
+}
+
+phase_rss() {
+  start_pipeline routed || return 1
+  run_point "rss default" routed 1 1000 64
+  RDMA_RSS=ipv4-udp
+  start_pipeline routed || return 1
+  run_point "rss ipv4-udp" routed 1 1000 64
+  run_point "rss ipv4-udp" routed 10000 10 64
+  RDMA_RSS=
+}
+
+RIG_DONE=""
+for phase in ${BNG_ONLY:-routed policer nat bng scale accuracy rss}; do
+  [ "$phase" = routed ] || [ -n "$RIG_DONE" ] || { start_pipeline routed && rig; }
+  RIG_DONE=1
+  "phase_$phase" || exit 1
 done
-
-start_pipeline routed || exit 1
-run_point "rss default" routed 1 1000 64
-RDMA_RSS=ipv4-udp
-start_pipeline routed || exit 1
-run_point "rss ipv4-udp" routed 1 1000 64
-run_point "rss ipv4-udp" routed 10000 10 64
-RDMA_RSS=
 
 echo; [ "$rc" = 0 ] && echo "BNG BENCH DONE" || echo "BNG BENCH FAILED"
 exit $rc
