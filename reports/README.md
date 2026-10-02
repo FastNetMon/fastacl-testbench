@@ -84,6 +84,7 @@ This is the source the other two files are generated from (`labs/hw/report.py`).
 
 | Report | Rig | Suite | FastACL | VPP | DUT software | Result |
 |---|---|---|---|---|---|---|
+| [2026-10-02_0620_bluefield3_full](2026-10-02_0620_bluefield3_full/) | bluefield3 | full | 0.6.1 | v26.10-rc1~0-g28e8c47f7 · dpdk | DOCA 3.4.0112, NIC firmware 32.49.1014 | PASS: 3 checks passed, 0 failed, 4 recorded measurements. 2026-10-02 06:05 UTC. |
 | [2026-10-01_1301_bluefield3_full](2026-10-01_1301_bluefield3_full/) | bluefield3 | full | 0.6.1 | v25.10-release | DOCA 3.4.0112, NIC firmware 32.49.1014 | PASS: 3 checks passed, 0 failed, 4 recorded measurements. 2026-10-01 12:43 UTC. |
 | [2026-10-01_1242_bluefield3_full](2026-10-01_1242_bluefield3_full/) | bluefield3 | full | 0.6.1 | v26.06-release | DOCA 3.4.0112, NIC firmware 32.49.1014 | PASS: 3 checks passed, 0 failed, 4 recorded measurements. 2026-10-01 12:28 UTC. |
 | [2026-10-01_1202_bluefield3_full](2026-10-01_1202_bluefield3_full/) | bluefield3 | full | 0.6.1 | v26.06-release | DOCA 24.11 | PASS: 3 checks passed, 0 failed, 4 recorded measurements. 2026-10-01 11:47 UTC. |
