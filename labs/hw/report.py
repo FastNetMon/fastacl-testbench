@@ -100,6 +100,13 @@ SECTIONS = [
         ("flows", "active flows"), ("offered_mpps", "offered Mpps"),
         ("dut_mpps", "absorbed Mpps"), ("nic_lost_pct", "NIC loss %"),
         ("cyc_pkt", "cycles/pkt")]),
+    ("bng", "BNG pipeline on the BlueField-3 Arm (routed, per-subscriber policer, NAT44-ED)", [
+        ("scenario", "test"), ("pipeline", "pipeline"), ("subscribers", "subscribers"), ("ports", "ports each"),
+        ("sessions", "NAT sessions"), ("frame", "frame"), ("rx_mpps", "received Mpps"),
+        ("dut_mpps", "forwarded Mpps"), ("expected_mpps", "expected Mpps"),
+        ("nic_lost_pct", "NIC loss %"), ("filter_ticks", "filter ticks/pkt"),
+        ("nat_ticks", "NAT ticks/pkt"), ("total_ticks", "pipeline ticks/pkt"),
+        ("rss", "RSS hash"), ("rx_workers", "workers receiving")]),
     ("dpu", "BlueField-3 Arm drop line rate", [
         ("scenario", "test"), ("dut_mpps", "absorbed Mpps"), ("mpps_min", "min"), ("mpps_max", "max"),
         ("trials", "trials"), ("cyc_pkt", "ticks/pkt"), ("floor", "floor Mpps"),

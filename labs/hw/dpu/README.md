@@ -61,3 +61,24 @@ BUNDLE_FILE=/path/to/local-bundle.tar.gz labs/hw/run.sh bluefield3 full   # a bu
   `--privileged`, the host network and `/dev/infiniband`.
 - `show runtime` clocks on the Arm are 330 MHz generic-timer ticks, about 6.5 core cycles each
   at 2.13 GHz; they do not compare directly with x86 TSC cycles.
+
+## BNG pipeline bench
+
+`labs/hw/run.sh bluefield3 bng` (`run-bng-bench.sh`, RDMA driver by default) measures a routed
+subscriber pipeline instead of a drop rate: TRex sends from `BNG_SUBSCRIBERS` sources in
+100.64.0.0/10 (random source, incrementing source port per subscriber) to one destination; VPP
+routes `p1` → `p0` and the forwarded rate is read from `p0` tx. Pipelines, each a fresh VPP:
+
+| pipeline | stages |
+|---|---|
+| routed | IPv4 forwarding only |
+| policer | + one FastACL `/32` rate-limit rule per subscriber on `p1` input |
+| nat | + NAT44-ED on `p0` as an output feature (after the filter, so rules see subscriber addresses) |
+| bng | policer + nat |
+
+Each point records the forwarded and received Mpps (median of `DPU_TRIALS`), NIC-side loss and
+per-packet `show runtime` ticks of the filter, NAT and the whole graph. Session scaling varies
+subscribers × ports at a fixed rule count; the policer accuracy points police 100 subscribers at
+10 and 20 Mbit/s each and compare the forwarded rate with the configured one. The rate limiter
+is per worker: a subscriber whose flows hash to several RSS queues gets the rate once per
+worker.

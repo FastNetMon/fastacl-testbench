@@ -20,6 +20,8 @@ comparable; only the L3/L4 protocol headers differ.
 """
 
 import os
+import socket
+import struct
 
 SENDER_IP   = os.environ.get("SENDER_IP",    "10.0.1.1")
 SENDER_MAC  = os.environ.get("SENDER_MAC", "02:00:00:00:00:01")
@@ -657,6 +659,63 @@ def build_mix_burst(pktsize):
         mode=STLTXSingleBurst(total_pkts=n, pps=200_000_000))
     return [udp, tcp]
 
+BNG_SUB_BASE = 0x64400000
+BNG_DST      = "198.51.100.10"
+BNG_SPORT    = 1024
+
+
+def _bng_param(path, default):
+    try:
+        return max(1, int(open(path).read().strip()))
+    except (OSError, ValueError):
+        return default
+
+
+def _bng_vm(src_min, src_max, ports):
+    ops = []
+    if src_max > src_min:
+        ops += [STLVmFlowVar(name="sub", min_value=src_min, max_value=src_max, size=4, op="random"),
+                STLVmWrFlowVar(fv_name="sub", pkt_offset="IP.src")]
+    if ports > 1:
+        ops += [STLVmFlowVar(name="sport", min_value=BNG_SPORT, max_value=BNG_SPORT + ports - 1,
+                             size=2, op="inc"),
+                STLVmWrFlowVar(fv_name="sport", pkt_offset="UDP.sport")]
+    return STLScVmRaw(ops + [STLVmFixIpv4(offset="IP")])
+
+
+def _bng_streams(sizes):
+    subs = _bng_param("/tmp/bng-subs", 10000)
+    ports = _bng_param("/tmp/bng-ports", 1)
+    parts = min(3, subs)
+    streams = []
+    for i in range(parts):
+        lo = BNG_SUB_BASE + i * subs // parts
+        hi = BNG_SUB_BASE + (i + 1) * subs // parts - 1
+        for size, weight in sizes:
+            pkt = (Ether(src=SENDER_MAC, dst=DUT_MAC)
+                   / IP(src=socket.inet_ntoa(struct.pack("!I", lo)), dst=BNG_DST)
+                   / UDP(sport=BNG_SPORT, dport=443, chksum=0)
+                   / Raw(_payload(size, 8)))
+            streams.append(STLStream(
+                name=f"bng-{i}-{size}", packet=STLPktBuilder(pkt=pkt, vm=_bng_vm(lo, hi, ports)),
+                mode=STLTXCont(pps=SPREAD_STREAM_PPS * weight)))
+    return streams
+
+
+def build_bng(pktsize):
+    """Subscriber traffic for a BNG pipeline: UDP from subscriber addresses in
+    100.64.0.0/10 to one Internet address.  /tmp/bng-subs sets the number of
+    subscribers (random source address per packet) and /tmp/bng-ports the source
+    ports per subscriber (incremented), so a NAT sees subscribers x ports
+    sessions.  With one port, every subscriber is a single flow."""
+    return _bng_streams([(pktsize, 1.0)])
+
+
+def build_bng_imix(pktsize):
+    """build_bng with the 7:4:1 IMIX frame mix instead of one size."""
+    return _bng_streams([(size, weight / 12.0) for size, weight in COLD_IMIX])
+
+
 PROFILES = {
     "udp-rand":       build_udp_rand,
     "syn-flood":      build_syn_flood,
@@ -669,6 +728,8 @@ PROFILES = {
     "cold-scan":      build_cold_scan,
     "cold-scan-scatter": build_cold_scan_scatter,
     "cold-scan-imix": build_cold_scan_imix,
+    "bng":            build_bng,
+    "bng-imix":       build_bng_imix,
     "ipv6-flood":     build_ipv6_flood,
     "ip6-cold-scan":  build_ip6_cold_scan,
     "reflection-mix": build_reflection_mix,

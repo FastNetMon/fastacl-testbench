@@ -68,7 +68,7 @@ full() {
 }
 
 dpu() {
-  local sizes="$GATE_FRAME_SIZES" rc=0
+  local bench="${1:-run-dpu-bench.sh}" sizes="$GATE_FRAME_SIZES" rc=0
   [ "$SUITE" = full ] && sizes="$FULL_FRAME_SIZES"
   if [ -n "${RESTORE_BF_MODE:-}" ]; then
     trap '"$SCRIPT_DIR/bf-mode.sh" "$RESTORE_BF_MODE"' EXIT
@@ -80,16 +80,17 @@ dpu() {
     { printf '{"ts": %s, "dut": "%s", "bench": "load", "scenario": "sync", "verdict": "FAIL"}\n' \
         "$(date +%s)" "$PROFILE" >> "$RESULTS_FILE"; return 1; }
   DPU_FRAME_SIZES="$sizes" DPU_TRIALS="${DPU_TRIALS:-$([ "$SUITE" = full ] && echo 3 || echo 1)}" \
-    "$SCRIPT_DIR/dpu/run-dpu-bench.sh" || rc=$?
-  echo "run-dpu-bench.sh exit=$rc"
+    "$SCRIPT_DIR/dpu/$bench" || rc=$?
+  echo "$bench exit=$rc"
   return $rc
 }
 
 case "$SUITE:${DUT_KIND:-host}" in
   gate:dpu|full:dpu) dpu ;;
+  bng:dpu) export DUT_DRIVER="${DUT_DRIVER_BNG:-rdma}" DPU_TRIALS="${DPU_TRIALS:-3}"; dpu run-bng-bench.sh ;;
   gate:host) gate ;;
   full:host) full ;;
   none:*) ;;
-  *) echo "usage: suite.sh gate|full|none   (PROFILE=server1|epyc-sp5|bluefield3, FROM=<stage> to resume)" >&2
+  *) echo "usage: suite.sh gate|full|bng|none   (PROFILE=server1|epyc-sp5|bluefield3, FROM=<stage> to resume)" >&2
      exit 2 ;;
 esac
