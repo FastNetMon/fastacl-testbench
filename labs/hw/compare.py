@@ -18,7 +18,8 @@ import os
 IMIX_AVG_FRAME = (64 * 7 + 570 * 4 + 1518 * 1) / 12
 KEY = ("bench", "sweep", "scenario", "attack", "frame", "flows", "nrules")
 VERSIONS = (("dut", "rig"), ("dut_cpu", "DUT CPU"), ("dut_os", "DUT software"),
-            ("dut_kernel", "DUT kernel"), ("vpp_version", "VPP"), ("plugin_version", "FastACL"),
+            ("dut_kernel", "DUT kernel"), ("dut_driver", "NIC driver"), ("vpp_version", "VPP"),
+            ("plugin_version", "FastACL"),
             ("vpp_workers", "workers"))
 
 
