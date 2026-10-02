@@ -55,8 +55,12 @@ stage_flows() {
     --flows "$FULL_FLOWS_SWEEP"
 }
 stage_frames() { bench frames --sizes "$FULL_FRAME_SIZES"; }
+stage_twoport() {
+  bench oneport --ports 2 --attack "$ONEPORT_ATTACK" --scenarios "5rules-drop 1m-rules-drop" \
+    --floor 0 --max-nic-lost 0 --max-cyc-drop ""
+}
 
-FULL_STAGES="${FULL_STAGES:-gate ceiling rules attacks scenarios flows frames}"
+FULL_STAGES="${FULL_STAGES:-gate ceiling rules attacks scenarios flows frames twoport}"
 
 full() {
   local s started=""

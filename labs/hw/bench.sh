@@ -62,7 +62,22 @@ sg docker -c "docker exec $cid vppctl -s /run/vpp/cli.sock show interface eth-le
 REMOTE
 }
 
+nic_snap_both() {
+  $SSH "$DUT_SSH" "IFL='$SERVER_KERNEL_IFACE0' IFR='$SERVER_KERNEL_IFACE1' bash -s" 2>/dev/null <<'REMOTE'
+p=0
+for i in "$IFL" "$IFR"; do p=$((p + $(ethtool -S "$i" | awk '$1 == "rx_packets_phy:" {print $2}'))); done
+cid=$(sg docker -c "docker ps -q --filter name=hw-dut" | head -1)
+g=$(sg docker -c "docker exec $cid vppctl -s /run/vpp/cli.sock show interface" |
+  awk '/^[^ ]/ {on = ($1 ~ /^eth-(left|right)$/)} on && /rx packets/ {s += $NF} END {print s + 0}')
+echo "$p $g"
+REMOTE
+}
+
 nic_snap() {
+  if [ "${NIC_SNAP_ALL:-0}" = 1 ]; then
+    nic_snap_both
+    return
+  fi
   if [ "${DUT_DRIVER:-dpdk}" = rdma ]; then
     nic_rdma_raw | awk '{print $1, $5}'
     return
@@ -126,7 +141,7 @@ cmd_oneport() {
   export LC_ALL=C
   local SCENARIOS="5rules-drop 0rules" ATTACK="fixed-flood-31" FLOOR=120
   local MAX_CYC_DROP="130" MAX_CYC_PASS="65" WARM_SEC=5 SAMPLE_SEC=10
-  local MAX_NIC_LOST_PCT=1.0 OFFERED=""
+  local MAX_NIC_LOST_PCT=1.0 OFFERED="" PORTS=1
   while [ $# -gt 0 ]; do case "$1" in
     --attack)       ATTACK="$2";       shift 2;;
     --floor)        FLOOR="$2";        shift 2;;
@@ -135,12 +150,19 @@ cmd_oneport() {
     --scenarios)    SCENARIOS="$2";    shift 2;;
     --offered)      OFFERED="$2";      shift 2;;
     --max-nic-lost) MAX_NIC_LOST_PCT="$2"; shift 2;;
+    --ports)        PORTS="$2";        shift 2;;
     --warm)         WARM_SEC="$2";     shift 2;;
     --sample)       SAMPLE_SEC="$2";   shift 2;;
     *) echo "unknown arg: $1"; exit 1;;
   esac; done
 
   require_one_dut "one-port bench"
+  local BENCH=oneport
+  if [ "$PORTS" = 2 ]; then
+    BENCH=twoport
+    export NIC_SNAP_ALL=1
+    TREX_PORTS=0,1 gen_restart 64 || { emit bench=twoport scenario="generator" verdict=FAIL detail="generator restart on both ports failed"; exit 1; }
+  fi
 
   echo ">> selecting attack profile: $ATTACK${OFFERED:+ at ${OFFERED} Mpps}"
   if [ -n "$OFFERED" ]; then
@@ -162,10 +184,11 @@ cmd_oneport() {
     sleep "$WARM_SEC"
     dut_exec "vppctl -s /run/vpp/cli.sock clear runtime" >/dev/null
     dut_exec "python3 /src/labs/hw/dut/fastacl-api.py clear-counters" >/dev/null
-    local _nic0 _nic1 nic_lost; _nic0=$(nic_snap)
+    local _nic0 _nic1 nic_lost arrived _t0 _t1; _nic0=$(nic_snap); _t0=$(date +%s.%N)
     sleep "$SAMPLE_SEC"
     local runtime; runtime=$(dut_exec "vppctl -s /run/vpp/cli.sock show runtime")
-    _nic1=$(nic_snap); nic_lost=$(nic_lost_pct "$_nic0" "$_nic1")
+    _nic1=$(nic_snap); _t1=$(date +%s.%N); nic_lost=$(nic_lost_pct "$_nic0" "$_nic1")
+    arrived=$(awk -v a="${_nic0%% *}" -v b="${_nic1%% *}" -v s="$_t0" -v e="$_t1" 'BEGIN{printf "%.1f", (b - a) / (e - s) / 1e6}')
 
     local filt_vec filt_cyc fwd_vec win mpps
     read -r filt_vec filt_cyc <<<"$(awk '/^fastacl-filter/ {v+=$4; c=$6} END{printf "%d %s", v, c}' <<<"$runtime")"
@@ -224,13 +247,15 @@ PY
 )
     printf '%-14s  %9s  %9s  %8s%%  %14s  %14s  %s\n' \
       "$scenario" "$cyc" "$mpps" "$nic_lost" "$filt_vec" "$fwd_vec" "$verdict"
-    emit bench=oneport attack="$ATTACK" scenario="$scenario" offered_mpps="${OFFERED:-$TREX_TARGET_MPPS}" \
-      dut_mpps="$mpps" nic_lost_pct="$nic_lost" cyc_pkt="$cyc" floor="$FLOOR" \
+    emit bench="$BENCH" ports="$PORTS" attack="$ATTACK" scenario="$scenario" \
+      offered_mpps="$(( ${OFFERED:-$TREX_TARGET_MPPS} * PORTS ))" \
+      arrived_mpps="$arrived" dut_mpps="$mpps" nic_lost_pct="$nic_lost" cyc_pkt="$cyc" floor="$FLOOR" \
       max_cyc="$max_cyc" max_nic_lost_pct="$MAX_NIC_LOST_PCT" verdict="${verdict%% *}" \
       detail="$verdict"
     [[ "$verdict" == FAIL* ]] && fail=1
   done
   echo
+  [ "$PORTS" = 2 ] && gen_restart 64
   [ "$fail" -eq 0 ] && echo "one-port bench: all scenarios behaved as expected" \
                     || echo "one-port bench: FAILURES above"
   exit "$fail"
@@ -408,7 +433,7 @@ gen_restart() {
   [ "$size" -gt 64 ] && mpps=0
   GEN_PKTSIZE="$size"
   $SSH "$GEN_USER" "sg docker -c 'docker ps -aq --filter name=hw-gen | xargs -r docker rm -f' >/dev/null 2>&1
-    cd ~/${HOST_REPO:-fastacl-testbench} && GEN='$GEN' DUT='$DUT' GEN_DOCKERFILE='${GEN_DOCKERFILE:-docker/Dockerfile.trex}' GEN_IMAGE='${GEN_IMAGE:-hw-gen}' TREX_PKTSIZE='$size' \
+    cd ~/${HOST_REPO:-fastacl-testbench} && GEN='$GEN' DUT='$DUT' GEN_DOCKERFILE='${GEN_DOCKERFILE:-docker/Dockerfile.trex}' GEN_IMAGE='${GEN_IMAGE:-hw-gen}' TREX_PORTS='${TREX_PORTS:-0}' TREX_PKTSIZE='$size' \
       TREX_TARGET_MPPS='$mpps' sg docker -c 'docker compose -f labs/hw/compose.yaml run -d gen'" \
     >/dev/null 2>&1
   local i up=""

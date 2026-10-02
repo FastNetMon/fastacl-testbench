@@ -100,6 +100,10 @@ SECTIONS = [
         ("flows", "active flows"), ("offered_mpps", "offered Mpps"),
         ("dut_mpps", "absorbed Mpps"), ("nic_lost_pct", "NIC loss %"),
         ("cyc_pkt", "cycles/pkt")]),
+    ("twoport", "Two-port drop: the generator sends on both ports, the DUT filters both", [
+        ("scenario", "rules"), ("attack", "traffic"), ("offered_mpps", "requested Mpps (both ports)"),
+        ("arrived_mpps", "arrived at the DUT NIC Mpps"), ("dut_mpps", "absorbed Mpps"), ("nic_lost_pct", "NIC loss %"), ("cyc_pkt", "cycles/pkt"),
+        ("detail", "detail")]),
     ("pair", "Generator pair ceiling: 64 B-1518 B UDP at the maximum rate, one port and both ports", [
         ("scenario", "direction"), ("ports", "ports"), ("frame", "frame"), ("tx_mpps", "sent Mpps"),
         ("tx_gbps", "sent Gbps (L1)"), ("rx_mpps", "received Mpps"),
@@ -326,7 +330,7 @@ def summary(data, rig):
             body.append([label, d.get("dut_mpps"),
                          wire_gbps(d.get("dut_mpps") or 0, f), limited_by(d, rig), fw.get("dut_mpps"),
                          wire_gbps(fw.get("dut_mpps") or 0, f), limited_by(fw, rig)])
-        out += ["### Packet size (1 × 100G ingress)", ""]
+        out += [f"### Packet size (1 × {rig.get('link_speed', '100 Gbps')} ingress)", ""]
         out += table(["frame", "drop Mpps", "drop Gbps (wire)", "drop limited by", "forward Mpps",
                       "forward Gbps (wire)", "forward limited by"], body)
     dpu = [r for r in data if r.get("bench") == "dpu" and r.get("frame") not in (None, "")]

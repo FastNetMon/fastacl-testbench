@@ -38,6 +38,7 @@ TREX_STREAM_MODE = os.environ.get("TREX_STREAM_MODE", "random-dst")
 TREX_ATTACK      = os.environ.get("TREX_ATTACK",      "icmp-flood")
 
 ATTACK_FILE = "/tmp/trex-attack"
+TX_PORTS = [int(p) for p in os.environ.get("TREX_PORTS", "0").split(",")]
 
 import _trex_env
 from trex.common.trex_exceptions import TRexError
@@ -177,7 +178,7 @@ def _load_attack(c, attack, rate=None):
     if attack == "udp-rand":
         streams = _build_streams(TREX_STREAM_MODE, "udp-rand")
     elif attack == "stop":
-        c.stop(ports=[0])
+        c.stop(ports=TX_PORTS)
         return 0
     else:
         import importlib, attacks as _atk
@@ -188,9 +189,9 @@ def _load_attack(c, attack, rate=None):
             return 0
         common = _demo_streams()
         streams = common + PROFILES[attack](PKTSIZE)
-    c.reset(ports=[0])
-    c.add_streams(streams, ports=[0])
-    c.start(ports=[0], mult=(rate or TREX_RATE), force=True)
+    c.reset(ports=TX_PORTS)
+    c.add_streams(streams, ports=TX_PORTS)
+    c.start(ports=TX_PORTS, mult=(rate or TREX_RATE), force=True)
     return len(streams)
 
 def _reconnect(c):
@@ -202,7 +203,7 @@ def _reconnect(c):
             pass
         try:
             c.connect()
-            c.acquire(ports=[0], force=True)
+            c.acquire(ports=TX_PORTS, force=True)
             return
         except TRexError as e:
             print(f"[{time.strftime('%H:%M:%S')}] reconnect failed ({e}); retrying in 5 s")
@@ -233,11 +234,11 @@ def main():
     c.connect()
 
     try:
-        c.acquire(ports=[0], force=True)
+        c.acquire(ports=TX_PORTS, force=True)
 
         if action == "stop":
-            c.stop(ports=[0])
-            print("TRex traffic stopped on port 0.")
+            c.stop(ports=TX_PORTS)
+            print(f"TRex traffic stopped on ports {TX_PORTS}.")
             return
 
         current = TREX_ATTACK
@@ -303,7 +304,7 @@ def main():
 
     except KeyboardInterrupt:
         print("\nStopping traffic...")
-        c.stop(ports=[0])
+        c.stop(ports=TX_PORTS)
     finally:
         c.disconnect()
 

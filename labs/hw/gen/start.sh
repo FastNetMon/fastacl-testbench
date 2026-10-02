@@ -117,15 +117,8 @@ if [ -z "${TREX_RATE:-}" ] && [ "${TREX_TARGET_MPPS:-0}" != "0" ]; then
   echo "  Rate: ${TREX_TARGET_MPPS} Mpps target -> TRex mult $TREX_RATE"
 fi
 if [ -z "${TREX_RATE:-}" ]; then
-  _link_mbps=$(cat "/sys/class/net/$GEN_IFACE0/speed" 2>/dev/null || echo 0)
-  if [ "${_link_mbps:-0}" -gt 0 ]; then
-    TREX_RATE=$(awk -v t="$TREX_TARGET_GBPS" -v l="$_link_mbps" \
-      'BEGIN{p=t*1000.0/l*100.0; if (p>100) p=100; printf "%.4g%%", p}')
-    echo "  Rate: ${TREX_TARGET_GBPS} Gbps target on a $((_link_mbps/1000)) G link -> TRex mult $TREX_RATE"
-  else
-    TREX_RATE="100%"
-    echo "  WARNING: could not read $GEN_IFACE0 link speed — falling back to 100% of line rate"
-  fi
+  TREX_RATE="${TREX_TARGET_GBPS}gbpsl1"
+  echo "  Rate: ${TREX_TARGET_GBPS} Gbps (L1) target -> TRex mult $TREX_RATE"
 fi
 
 exec env \
@@ -137,6 +130,7 @@ exec env \
   TREX_PKTSIZE="${TREX_PKTSIZE:-64}" \
   TREX_STREAM_MODE="${TREX_STREAM_MODE:-random-dst}" \
   TREX_ATTACK="${TREX_ATTACK:-icmp-flood}" \
+  TREX_PORTS="${TREX_PORTS:-0}" \
   DUT_NUM_QUEUES="$DUT_NUM_QUEUES" \
   DUT_RSS_KEY="$DUT_RSS_KEY" \
   python3 /src/labs/hw/gen/conf/run.py

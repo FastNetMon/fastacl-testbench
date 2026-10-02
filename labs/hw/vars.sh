@@ -125,6 +125,8 @@ case "$GEN" in
     GEN_DOCKERFILE="docker/Dockerfile.trex-src"
     GEN_IMAGE="ghcr.io/garyachy/fastacl-testbench-trex:27e0153b"
     TREX_PORT_MTU=9000
+    TREX_TARGET_GBPS=400
+    TREX_TARGET_GBPS_MIXED=400
     ;;
   *)
     echo "vars.sh: unknown GEN='$GEN' (use 'lava', 'flame', 'dell', 'alice' or 'bob')" >&2
