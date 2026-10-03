@@ -244,13 +244,13 @@ graceful_stop() {
 trap graceful_stop TERM INT
 
 echo "Waiting for VPP CLI..."
-for _i in $(seq 1 60); do
+for _i in $(seq 1 180); do
   if [ -S /run/vpp/cli.sock ] && \
      $VPPCTL_BIN show version &>/dev/null 2>&1; then
     break
   fi
-  if [ "$_i" = "60" ]; then
-    echo "ERROR: VPP CLI not ready after 60 s." >&2
+  if [ "$_i" = "180" ]; then
+    echo "ERROR: VPP CLI not ready after 180 s." >&2
     kill "$VPP_PID" 2>/dev/null || true
     exit 1
   fi
