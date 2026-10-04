@@ -52,7 +52,7 @@ else
   HP_1G_NR="${GEN_HUGEPAGES_1G:-$HUGEPAGES_NR}"
 fi
 
-WANTED_PARAMS=()
+WANTED_PARAMS=("iommu=pt")
 [ "$HP_1G_NR" -gt 0 ] && WANTED_PARAMS+=("hugepagesz=1G" "hugepages=$HP_1G_NR")
 if [ "$ROLE" = "dut" ] && [ -n "${DUT_WORKER_CORES:-}" ]; then
   WANTED_PARAMS+=(

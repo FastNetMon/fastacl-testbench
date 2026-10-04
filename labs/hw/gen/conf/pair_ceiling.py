@@ -27,10 +27,11 @@ from scapy.layers.inet import IP, UDP
 from scapy.packet import Raw
 
 STREAMS = int(os.environ.get("PAIR_STREAMS", "1"))
+DPORT = int(os.environ.get("PAIR_DPORT", "12"))
 
 
 def stream(size, dst_mac):
-    base = Ether(dst=dst_mac) / IP(src="16.0.0.1", dst="48.0.0.1") / UDP(sport=1025, dport=12)
+    base = Ether(dst=dst_mac) / IP(src="16.0.0.1", dst="48.0.0.1") / UDP(sport=1025, dport=DPORT)
     pad = max(0, size - 4 - len(base))
     vm = STLScVmRaw([STLVmFlowVar(name="src", min_value=0x10000001, max_value=0x10010000, size=4, op="inc"),
                      STLVmWrFlowVar(fv_name="src", pkt_offset="IP.src"),

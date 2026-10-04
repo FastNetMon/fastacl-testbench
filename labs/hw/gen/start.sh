@@ -67,6 +67,7 @@ sed \
     -e "s|__TREX_WORKER_LIST__|$TREX_WORKER_LIST|g" \
     "$CONF_DIR/trex_cfg.yaml.tmpl" > /etc/trex_cfg.yaml
 [ -n "${TREX_PORT_MTU:-}" ] && sed -i "/^  version /a\\  port_mtu        : $TREX_PORT_MTU" /etc/trex_cfg.yaml
+[ -n "${TREX_DEVARGS:-}" ] && sed -i "/^  version /a\\  dpdk_devargs    : [$(echo "$TREX_DEVARGS" | sed 's/[^,][^,]*/\"&\"/g')]" /etc/trex_cfg.yaml
 
 echo "Rendered /etc/trex_cfg.yaml (workers: $TREX_WORKER_LIST, count: $TREX_WORKER_COUNT)"
 

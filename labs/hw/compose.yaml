@@ -41,6 +41,7 @@ services:
       - GEN_IDLE=${GEN_IDLE:-}
       - TREX_CORES=${TREX_CORES:-}
       - TREX_PORTS=${TREX_PORTS:-}
+      - TREX_DEVARGS=${TREX_DEVARGS:-}
     volumes:
       - ../..:/src
       - /dev/hugepages:/dev/hugepages
