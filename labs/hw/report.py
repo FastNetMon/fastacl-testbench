@@ -185,6 +185,7 @@ def rig_table(rig, meta):
         ("Topology", f"2-node: {meta['gen']} (TRex) cabled back to back to {meta['dut']}, no switch"),
         ("DUT CPU", f"{rig.get('dut_cpu', '?')} ({fmt(rig.get('dut_cores'))} CPUs)"),
         ("DUT NIC", f"{rig.get('dut_nic', '?')}, link {rig.get('link_speed', '?')}"),
+        ("DUT memory", rig.get("dut_memory", "")),
         ("DUT kernel", rig.get("dut_kernel", "?")),
         ("DUT software", rig.get("dut_os", "")),
         ("NIC driver", rig.get("dut_driver", "")),

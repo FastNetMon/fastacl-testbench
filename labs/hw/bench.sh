@@ -646,7 +646,7 @@ host_exec() { $SSH "$1" "$2" 2>/dev/null | tr -d '\r'; }
 cmd_rig() {
   require_one_dut "rig"
   local vppctl="vppctl -s /run/vpp/cli.sock"
-  local dut_cpu dut_cores dut_kernel dut_os dut_nic gen_cpu gen_cores gen_nic vpp_ver plugin_ver
+  local dut_cpu dut_cores dut_kernel dut_os dut_nic dut_mem gen_cpu gen_cores gen_nic vpp_ver plugin_ver
   local workers link lic_kind lic_expires
   dut_cpu=$(host_exec "$DUT_SSH" "grep -m1 'model name' /proc/cpuinfo | cut -d: -f2 | xargs")
   dut_cores=$(host_exec "$DUT_SSH" "grep -c ^processor /proc/cpuinfo")
@@ -657,6 +657,10 @@ cmd_rig() {
     [ -n \"\$fw\" ] || fw=\$(ethtool -i \"\$i\" 2>/dev/null | awk '/^firmware-version/{print \$2}')
     echo \"\$PRETTY_NAME, NIC firmware \$fw\"")
   dut_nic=$(host_exec "$DUT_SSH" "lspci -s ${DUT_PCI_LEFT#0000:} | cut -d: -f3- | xargs")
+  dut_mem=$(host_exec "$DUT_SSH" "sudo -n dmidecode -t memory | awk -F': ' '
+    /^\tSize: [0-9]/ {n++; size=\$2} /^\tType: DDR/ {type=\$2} /^\tPart Number:/ {part=\$2}
+    /^\tConfigured Memory Speed: [0-9]/ {speed=\$2}
+    END {if (n) {gsub(/ +$/, \"\", part); printf \"%d x %s %s @ %s (%s)\", n, size, type, speed, part}}'")
   gen_cpu=$(host_exec "$GEN_USER" "grep -m1 'model name' /proc/cpuinfo | cut -d: -f2 | xargs")
   gen_cores=$(host_exec "$GEN_USER" "grep -c ^processor /proc/cpuinfo")
   gen_nic=$(host_exec "$GEN_USER" "lspci -s ${SENDER_PCI#0000:} | cut -d: -f3- | xargs")
@@ -669,7 +673,7 @@ cmd_rig() {
   lic_expires=$(dut_exec "$vppctl show fastacl license" 2>/dev/null |
                 awk -F': *' '/^expires/{print $2}' | tr -d '\r')
   emit bench=rig dut_cpu="$dut_cpu" dut_cores="$dut_cores" dut_kernel="$dut_kernel" dut_os="$dut_os" \
-    dut_nic="$dut_nic" link_speed="$link" gen_cpu="$gen_cpu" gen_cores="$gen_cores" \
+    dut_nic="$dut_nic" dut_memory="$dut_mem" link_speed="$link" gen_cpu="$gen_cpu" gen_cores="$gen_cores" \
     gen_nic="$gen_nic" vpp_version="$vpp_ver" plugin_version="$plugin_ver" \
     vpp_workers="$workers" rx_desc="$DUT_RX_DESC" tx_desc="$DUT_TX_DESC" \
     trex_version="${TREX_VERSION:-3.06}" target_mpps="$TREX_TARGET_MPPS" \
