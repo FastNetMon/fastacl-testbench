@@ -23,6 +23,13 @@ The BMCs (IPMI, iDRAC) and two networked PDUs sit on the lab's management LAN an
 only through rackpi. `labs/hw/bringup-guarded.sh` uses them to recover a DUT whose NIC wedged
 during DPDK initialisation: first an IPMI power cycle, then a PDU power drain.
 
+alice and bob have no BMC; each has a JetKVM on the same management LAN instead, driven by
+`labs/hw/setup/kvm.sh <host> {status|reboot|sysrq-reboot|on|off|cycle|reset}` (and by
+`setup/ipmi.sh --target dut` for those profiles). `reboot` (Ctrl+Alt+Del) and `sysrq-reboot`
+type on the host's keyboard, so they need a live kernel. Power on/off/cycle/reset press the
+motherboard buttons and need the JetKVM ATX extension, which is not fitted yet. Every call takes
+over the KVM session, signing out anyone using its web UI.
+
 ## Cabling
 
 ```

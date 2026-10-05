@@ -206,7 +206,8 @@ if [ "$NIC_STUCK" = "1" ]; then
     echo ""
     echo "FATAL: CX5 NIC firmware stuck in pre-init state."
     echo "  Warm reset does NOT clear this.  Fix: POWER CYCLE the server."
-    echo "  Use: ./labs/hw/setup/ipmi.sh cycle   (or power-off → power-on via IPMI)"
+    echo "  Use: ./labs/hw/setup/ipmi.sh cycle   (or power-off → power-on via IPMI;"
+    echo "       alice/bob go through their JetKVM, which needs the ATX extension)"
     exit 1
   fi
 fi

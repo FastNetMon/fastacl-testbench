@@ -15,7 +15,6 @@ DUT_SEL="$DUT"          # vars.sh profile name (server1|epyc) before DUT is reus
 DUT="$LAB_SSH_USER@$DUT_HOST"
 IPMI_PROXY="${IPMI_PROXY:-${LAB_PROXY:-}}"
 
-ipmi() { $SSH "$IPMI_PROXY" "ipmitool -I lanplus -H '$DUT_IPMI_HOST' -U '$DUT_IPMI_USER' -P '$DUT_IPMI_PASS' $*"; }
 dut_alive() { timeout 10 $SSH -o ConnectTimeout=6 "$DUT" 'echo ok' 2>/dev/null | grep -q ok; }
 vpp_up() {
   timeout 14 $SSH -o ConnectTimeout=8 "$DUT" \
@@ -28,12 +27,13 @@ n_dut_containers() {
     'sg docker -c "docker ps -q --filter name=hw-dut" | wc -l' 2>/dev/null | tr -d '[:space:]'
 }
 recover() {
-  echo ">> WEDGED — auto-recovering via IPMI cold cycle..."
-  ipmi power off >/dev/null 2>&1; sleep 20; ipmi power on >/dev/null 2>&1
-  for _ in $(seq 1 18); do dut_alive && { echo ">> DUT back online."; return 0; }; sleep 15; done
+  echo ">> WEDGED — auto-recovering via an out-of-band cold cycle (IPMI, or JetKVM ATX)..."
+  if DUT="$DUT_SEL" bash "$SCRIPT_DIR/setup/ipmi.sh" --target dut cycle 2>&1 | sed 's/^/   /'; then
+    for _ in $(seq 1 18); do dut_alive && { echo ">> DUT back online."; return 0; }; sleep 15; done
+  fi
 
   local dut_name="${DUT_HOST%%.*}"
-  echo ">> IPMI cycle did not recover it — escalating to a PDU AC-drain (cx7-recover $dut_name)..."
+  echo ">> Power cycle did not recover it — escalating to a PDU AC-drain (cx7-recover $dut_name)..."
   if bash "$SCRIPT_DIR/setup/cx7-recover.sh" "$dut_name" --no-verify 2>&1 | sed 's/^/   /'; then
     for _ in $(seq 1 18); do dut_alive && { echo ">> DUT back online after AC drain."; return 0; }; sleep 15; done
   fi

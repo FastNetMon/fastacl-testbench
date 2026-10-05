@@ -40,6 +40,8 @@ case "$DUT" in
     DUT_LEFT_MAC_DEFAULT="${!_l:-}"
     DUT_RIGHT_MAC_DEFAULT="${!_r:-}"
     DUT_IPMI_HOST=""; DUT_IPMI_USER=""; DUT_IPMI_PASS=""
+    # No BMC: out-of-band control is the host's JetKVM (setup/kvm.sh).
+    _k="LAB_KVM_HOST_$DUT"; DUT_KVM_HOST="${!_k:-}"
     DUT_HUGEPAGES_1G=0
     DUT_SKIP_OFED=1
     ;;
