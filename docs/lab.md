@@ -30,6 +30,69 @@ type on the host's keyboard, so they need a live kernel. Power on/off/cycle/rese
 motherboard buttons and need the JetKVM ATX extension, which is not fitted yet. Every call takes
 over the KVM session, signing out anyone using its web UI.
 
+## alice and bob host changes
+
+Reports from alice and bob before and after these dates were taken on differently configured
+hosts. Every report since `f15f13f` names the DUT's memory speed in its header (`DUT memory`).
+
+| Change | Since | Where | Effect |
+|---|---|---|---|
+| `iommu=pt` on the kernel command line | 2026-10-03 | `setup/install.sh` | TRex rate unchanged (300 Mpps per CX-8 is the card's packet rate); VPP starts in ~72 s instead of ~170 s |
+| ASPM L1 off on the Intel I226 management port | 2026-10-05 | `setup/install.sh` (udev rule) | stops the port dropping off PCIe ("PCIe link lost") under heavy transfers |
+| DDR5-6000 via EXPO, both hosts | 2026-10-05 | BIOS by hand: Ai Tweaker → Ai Overclock Tuner = EXPO II | memory was running at 4800; see below. Not scripted: a BIOS update or CMOS clear reverts it |
+| Firmware reset repeated when the CX-8 PCIe link trains below the slot speed | 2026-10-05 | `setup/mellanox-init.sh` | bob's card came back at 2.5 GT/s on 2 of 8 resets and then ran at ~22 Mpps |
+
+The EXPO profiles differ slightly: alice's modules (KF560C36-16) load DDR5-6000 36-44-44-90,
+bob's (KF560C36BBE2-16TR) DDR5-6000 38-48-48-96, both at 1.35 V. Each host passed a 5-minute
+`stress-ng --vm --verify` run at 6000 before any measurement.
+
+### Enabling EXPO remotely
+
+Run it with the host idle (no DUT or TRex containers). Watch every step with
+`labs/hw/setup/kvm.sh <host> screenshot <file.png>`; keys go through the JetKVM keyboard.
+
+1. On the host: `sudo systemctl reboot --firmware-setup`. The board boots straight into UEFI setup,
+   so no key has to be timed during POST.
+2. Wait until a screenshot shows the setup screen (EZ Mode), about 80 s. Keys sent earlier are
+   lost or land on the wrong screen.
+3. Press **F7** for Advanced Mode, then **Right** to the **Ai Tweaker** tab.
+4. On **Ai Overclock Tuner** press **Enter**, choose **EXPO II** (three entries below Auto) and
+   press **Enter**. The **EXPO** line under it must show the module's profile (DDR5-6000 …, 1.35 V)
+   and Target DRAM Frequency 6000 MHz.
+5. Press **F10**. The *Save Changes & Reset* dialog must list only Ai Overclock Tuner, Memory
+   Frequency and the memory timings; if anything else is there, choose **Cancel** and reset
+   without saving (Ctrl+Alt+Del). Otherwise confirm **Ok**.
+6. The first boot at the new speed trains the memory (60–110 s here). Then check
+   `sudo dmidecode -t memory` shows *Configured Memory Speed: 6000 MT/s* and run
+   `stress-ng --vm 32 --vm-bytes 70% --vm-method all --verify --timeout 300s` with no failures
+   and no machine-check errors in `dmesg`.
+
+To revert, repeat with Ai Overclock Tuner = Auto.
+
+Same day, same software, CALIBRATE runs of the gate and ceiling stages, DUT absorbed Mpps:
+
+| Test (64 B unless noted) | alice 4800 | alice 6000 | bob 4800 | bob 6000 |
+|---|---|---|---|---|
+| 5rules-drop | 185.4 | 198.6 | 187.4 | 198.9 |
+| country-set-drop | 186.3 | 199.8 | 186.3 | 199.2 |
+| 1m-rules-drop, cold-scan | 184.4 | 199.7 | 185.2 | 200.0 |
+| 1m-rules-drop, cold-scan-imix | 85.1 | 102.7 | 85.9 | 97.5 |
+| 1m-rules-drop-ip6 | 184.5 | 200.0 | 185.0 | 200.1 |
+| ceiling, 3/3 rules | 183.8 | 199.8 | 187.9 | 200.1 |
+| report | [1307](../reports/2026-10-05_1307_alice_full/) | [1335](../reports/2026-10-05_1335_alice_full/) | [1416](../reports/2026-10-05_1416_bob_full/) | [1526](../reports/2026-10-05_1526_bob_full/) |
+
+At 6000 the 64 B scenarios absorb the full 200 Mpps the suite offers. Offered more by a single
+stream (5 drop rules, every processed packet confirmed dropped), alice drops ~196 Mpps at 250 and
+300 Mpps offered (157 at 4800) and 187 Mpps with 150 + 150 on two ports (149 at 4800). The cost
+of the filter node is unchanged (~76–79 cycles/packet); the receive node `dpdk-input` falls from
+~206 to ~150 cycles/packet, so at 4800 the hosts were memory-bound, not CPU-bound.
+
+DRAM traffic stays at ~340–350 bytes per 64 B packet at both speeds (`perf stat` on the
+`amd_umc_0/1` PMUs, event `0xa`, `rdwrmask=1` reads / `2` writes, 64 B per count; needs
+`modprobe amd_uncore`). AMD SDCI (cache injection) would cut that but is not usable on these
+boards: the CPU reports SDCIAE in CPUID, but the BIOS has no TPH/SDCI option and the ACPI tables
+no steering-tag `_DSM`, and enabling the CX-8's TPH requester changed nothing measurable.
+
 ## Cabling
 
 ```
