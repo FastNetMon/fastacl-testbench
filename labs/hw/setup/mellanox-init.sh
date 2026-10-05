@@ -84,7 +84,7 @@ fi
 if [ "$NEED_COLD_CYCLE" = "1" ]; then
   echo "mellanox-init: INTERNAL_CPU_MODEL changed -> COLD POWER CYCLE REQUIRED."
   echo "  mlxfwreset does NOT activate this key.  Run:"
-  echo "    DUT=$DUT labs/hw/setup/ipmi.sh --target dut cycle"
+  echo "    DUT=$DUT labs/hw/setup/ipmi.sh --target dut cycle   (alice/bob: JetKVM, needs the ATX extension)"
   echo "  then re-run this script to confirm the mode took effect."
 fi
 

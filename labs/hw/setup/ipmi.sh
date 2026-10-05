@@ -16,6 +16,15 @@ esac
 
 CMD="${1:-status}"
 
+# Hosts without a BMC (alice, bob) are driven through their JetKVM instead, so
+# every recovery path that calls this script reaches them unchanged.
+if [ "$TARGET" = dut ] && [ -z "$DUT_IPMI_HOST" ] && [ -n "${DUT_KVM_HOST:-}" ]; then
+  case "$CMD" in
+    sol|sensors) echo "$CMD is not available for ${DUT_HOST%%.*}: use the JetKVM web UI"; exit 1 ;;
+    *) exec bash "$SCRIPT_DIR/kvm.sh" "$DUT" "$CMD" ;;
+  esac
+fi
+
 IPMI_PROXY="${IPMI_PROXY:-${LAB_PROXY:-}}"
 
 _ipmi() {

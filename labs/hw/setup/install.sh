@@ -100,6 +100,21 @@ else
   echo "  Kernel cmdline already has all desired tunings (no change)."
 fi
 
+# Intel I225/I226 (igc) management ports drop off the PCIe bus with ASPM L1 on
+# ("PCIe link lost, device now detached"), taking SSH and Tailscale with them
+# while the host keeps running -- seen on bob during a large image copy.  Keep
+# L1 off for igc ports only, from boot on and right now.
+IGC_RULE=/etc/udev/rules.d/80-igc-no-aspm-l1.rules
+IGC_LINE='ACTION=="add|bind", SUBSYSTEM=="pci", DRIVER=="igc", ATTR{link/l1_aspm}="0"'
+if [ "$(cat "$IGC_RULE" 2>/dev/null)" != "$IGC_LINE" ]; then
+  echo "$IGC_LINE" > "$IGC_RULE"
+  udevadm control --reload
+  echo "  + $IGC_RULE (ASPM L1 off on igc ports)"
+fi
+for d in /sys/bus/pci/drivers/igc/0000:*; do
+  if [ -w "$d/link/l1_aspm" ]; then echo 0 > "$d/link/l1_aspm"; fi
+done
+
 echo ""
 echo "[3/5] Allocating hugepages now..."
 
