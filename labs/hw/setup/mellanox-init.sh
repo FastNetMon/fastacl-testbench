@@ -156,4 +156,25 @@ if [ "$DO_RESET" = 1 ] && [ -n "$MLXFWRESET" ]; then
 elif [ "$DO_RESET" = 1 ]; then
   echo "mellanox-init: mlxfwreset not found — skipping firmware reset." >&2
 fi
+# The PCIe link retrains on a reset and does not always come back at
+# full speed: bob's ConnectX-8 landed at 2.5 GT/s (Gen1) on 2 of 8 resets and
+# then delivered ~22 Mpps, while another reset restored 32 GT/s.  Check the
+# speed against what the slot can do and reset again if it trained low.
+dev=/sys/bus/pci/devices/$PCI
+gts() { sed 's/ GT.*//' "$1" 2>/dev/null || true; }
+want=$(printf '%s\n%s\n' "$(gts "$dev/max_link_speed")" "$(gts "$(readlink -f "$dev")/../max_link_speed")" | sort -g | head -1)
+for n in 1 2 3; do
+  have=$(gts "$dev/current_link_speed")
+  [ -z "$want" ] || [ -z "$have" ] || [ "${have%.*}" -ge "${want%.*}" ] && break
+  echo "mellanox-init: PCIe link at $have GT/s, slot allows $want GT/s — firmware reset again ($n/3) ..." >&2
+  [ -n "$MLXFWRESET" ] || break
+  "$MLXFWRESET" -d "$PCI" -y --level 3 reset >/dev/null || break
+  _wait_dut_link_up 15 || true
+done
+have=$(gts "$dev/current_link_speed")
+if [ -n "$want" ] && [ -n "$have" ] && [ "${have%.*}" -lt "${want%.*}" ]; then
+  echo "mellanox-init: WARNING PCIe link stuck at $have GT/s (slot allows $want) — reboot the host." >&2
+else
+  echo "mellanox-init: PCIe link at ${have:-?} GT/s."
+fi
 echo "mellanox-init: done."
