@@ -94,6 +94,7 @@ This is the source the other two files are generated from (`labs/hw/report.py`).
 
 | Report | Rig | Suite | FastACL | VPP | DUT software | Result |
 |---|---|---|---|---|---|---|
+| [2026-10-05_1307_alice_full](2026-10-05_1307_alice_full/) | alice | full | 0.6.1 | v25.10-release · dpdk | Ubuntu 24.04.4 LTS, NIC firmware 40.50.1002 | CALIBRATION RUN (no verdict): 3 checks passed, 6 failed, 6 recorded measurements. 2026-10-05 12:56 UTC. |
 | [2026-10-03_0021_bob_full](2026-10-03_0021_bob_full/) | bob | full | 0.6.1 | v25.10-release · dpdk | Ubuntu 24.04.4 LTS, NIC firmware 40.50.1002 | CALIBRATION RUN (no verdict): 5 checks passed, 6 failed, 101 recorded measurements. 2026-10-02 22:26 UTC. |
 | [2026-10-02_2219_alice_full](2026-10-02_2219_alice_full/) | alice | full | 0.6.1 | v25.10-release · dpdk | Ubuntu 24.04.4 LTS, NIC firmware 40.50.1002 | CALIBRATION RUN (no verdict): 5 checks passed, 6 failed, 101 recorded measurements. 2026-10-02 20:25 UTC. |
 | [2026-10-02_1716_alice_full](2026-10-02_1716_alice_full/) | alice | full | 0.6.1 | v25.10-release · dpdk | Ubuntu 24.04.4 LTS, NIC firmware 40.50.1002 | CALIBRATION RUN (no verdict): 4 checks passed, 5 failed, 99 recorded measurements. 2026-10-02 15:25 UTC. |
