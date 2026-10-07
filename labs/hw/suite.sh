@@ -95,6 +95,6 @@ case "$SUITE:${DUT_KIND:-host}" in
   gate:host) gate ;;
   full:host) full ;;
   none:*) ;;
-  *) echo "usage: suite.sh gate|full|bng|none   (PROFILE=server1|epyc-sp5|bluefield3, FROM=<stage> to resume)" >&2
+  *) echo "usage: suite.sh gate|full|bng|none   (PROFILE=server1|epyc-sp5|epyc-cx8|bluefield3|alice|bob, FROM=<stage> to resume)" >&2
      exit 2 ;;
 esac

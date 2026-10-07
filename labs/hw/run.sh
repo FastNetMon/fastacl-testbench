@@ -7,7 +7,7 @@ export LC_ALL=C
 
 HW="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HW/../.." && pwd)"
-PROFILE="${1:?usage: run.sh <server1|epyc-sp5|bluefield3|alice|bob> [gate|full|bng|pair]}"
+PROFILE="${1:?usage: run.sh <server1|epyc-sp5|epyc-cx8|bluefield3|alice|bob> [gate|full|bng|pair]}"
 SUITE="${2:-gate}"
 export PROFILE SUITE DUT_PROFILE="$PROFILE" HOST_REPO="${HOST_REPO:-fastacl-testbench}"
 

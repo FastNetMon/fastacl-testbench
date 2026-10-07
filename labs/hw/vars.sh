@@ -31,6 +31,17 @@ case "$DUT" in
     # power cycle -- see setup/mellanox-init.sh --bf-mode.
     DUT_BF_MODE="${DUT_BF_MODE:-nic}"
     ;;
+  epyc-cx8)
+    # epyc-sp5 with alice's ConnectX-8 in CPU SLOT5 (BlueField-3 removed
+    # 2026-10-07), cabled port to port with bob like alice was.
+    DUT_HOST="${LAB_HOST_epyc:-}"
+    DUT_PCI_0="0000:41:00.0"; DUT_IFACE_0="enp65s0f0np0"
+    DUT_PCI_1="0000:41:00.1"; DUT_IFACE_1="enp65s0f1np1"
+    DUT_INGRESS_DEFAULT="0000:41:00.1"
+    DUT_LEFT_MAC_DEFAULT="${LAB_MAC_LEFT_epyc_cx8:-}"
+    DUT_RIGHT_MAC_DEFAULT="${LAB_MAC_RIGHT_epyc_cx8:-}"
+    DUT_IPMI_HOST="${LAB_IPMI_HOST_epyc:-}"; DUT_IPMI_USER="${LAB_IPMI_USER_epyc:-}"; DUT_IPMI_PASS="${LAB_IPMI_PASS_epyc:-}"
+    ;;
   alice|bob)
     DUT_HOST_VAR="LAB_HOST_$DUT"; DUT_HOST="${!DUT_HOST_VAR:-}"
     DUT_PCI_0="0000:01:00.0"; DUT_IFACE_0="enp1s0f0np0"
@@ -46,7 +57,7 @@ case "$DUT" in
     DUT_SKIP_OFED=1
     ;;
   *)
-    echo "vars.sh: unknown DUT='$DUT' (use 'server1', 'epyc', 'alice' or 'bob')" >&2
+    echo "vars.sh: unknown DUT='$DUT' (use 'server1', 'epyc', 'epyc-cx8', 'alice' or 'bob')" >&2
     return 1 2>/dev/null || exit 1
     ;;
 esac

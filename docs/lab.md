@@ -11,8 +11,9 @@ addresses are **not** in this repository: they come from the `LAB_ENV` secret, r
 |------|------|-----|-----|---------|
 | server1 | DUT, `2n-rome-cx7` | AMD EPYC 7742 (Rome), 64 cores / 128 threads | ConnectX-7, dual port, links at 200 Gbps | `labs/hw/profiles/server1.env` |
 | epyc-sp5 | DUT, `2n-genoa-bf3` | AMD EPYC 9534 (Genoa), 64 cores, PCIe Gen5 | BlueField-3 B3240 (integrated ConnectX-7), host NIC mode | `labs/hw/profiles/epyc-sp5.env` |
+| epyc-sp5 | DUT, `2n-genoa-cx8` (since 2026-10-07; BlueField-3 removed) | AMD EPYC 9534 (Genoa), 64 cores, 12× DDR5-4800 | alice's ConnectX-8 in CPU SLOT5, links at 400 Gbps; PCIe Gen5 x16 | `labs/hw/profiles/epyc-cx8.env`, TG bob |
 | bluefield3 | DUT, `2n-bf3-arm` | BlueField-3 Arm, 16× Cortex-A78 | the same BlueField-3 in DPU mode | `labs/hw/dpu/` |
-| alice | DUT (profile `alice`) and TG for bob | AMD Ryzen 9 9950X, 16 cores / 32 threads | ConnectX-8, dual port, links at 400 Gbps; PCIe Gen5 x16 (half of the card's Gen6 x16) | `labs/hw/profiles/alice.env`, `GEN=alice` |
+| alice | DUT (profile `alice`) and TG for bob; no NIC since 2026-10-07 (card moved to epyc-sp5) | AMD Ryzen 9 9950X, 16 cores / 32 threads | ConnectX-8, dual port, links at 400 Gbps; PCIe Gen5 x16 (half of the card's Gen6 x16) | `labs/hw/profiles/alice.env`, `GEN=alice` |
 | bob | DUT (profile `bob`) and TG for alice | AMD Ryzen 9 9950X, 16 cores / 32 threads | ConnectX-8, dual port, links at 400 Gbps; PCIe Gen5 x16 | `labs/hw/profiles/bob.env`, `GEN=bob` |
 | flame1 | TG for server1 | AMD Ryzen 7 5800X | ConnectX-7, dual port | `GEN=flame` |
 | lava1 | TG for epyc-sp5 and bluefield3 | AMD Ryzen 9 9950X | 2× ConnectX-5 Ex (one sender card, one receiver card) | `GEN=lava` |
@@ -104,6 +105,9 @@ lava1   card A   ◄─100G───  epyc-sp5 BF-3 port 0  (egress)
 
 bob   port 1  ──400G──►  alice port 1  (ingress)      alice port 1 ──400G──►  bob port 1  (ingress)
 bob   port 0  ◄─400G───  alice port 0  (egress)       alice port 0 ◄─400G───  bob port 0  (egress)
+
+bob   port 1  ──400G──►  epyc-sp5 CX-8 port 1  (ingress)
+bob   port 0  ◄─400G───  epyc-sp5 CX-8 port 0  (egress)
 ```
 
 alice and bob are cabled port to port, so either is the DUT and the other its generator: profile
