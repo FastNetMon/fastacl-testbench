@@ -6,6 +6,10 @@ measures the drop rate per frame size. Results are published like every other ri
 
 ## Topology
 
+The BlueField-3 was taken out of epyc-sp5 on 2026-10-07 to make room for the ConnectX-8
+(`epyc-cx8` rig); this bench needs it refitted first.
+
+
 ```
  lava1 (Ryzen 9950X, 2× CX-5 Ex, TRex)        epyc-sp5 BlueField-3 (DPU mode, Arm owns the uplinks)
    card B ──100G DAC──►  p1 uplink 03:00.1   (ingress)

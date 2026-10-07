@@ -118,11 +118,26 @@ pinned commit, DPDK 25.07) and kept as a private package, `ghcr.io/garyachy/fast
 login, through a throw-away docker config) and streams it to the generator with `docker save | docker
 load`, so no registry credential is stored on a lab host. VPP runs 15 workers on cores 1-15; the hosts have no BMC.
 
+Since 2026-10-07 alice's ConnectX-8 sits in epyc-sp5 (CPU SLOT5) and the BlueField-3 is out of the box,
+so only `epyc-cx8` (DUT epyc-sp5, generator bob) runs; `epyc-sp5`, `bluefield3`, `alice` and `bob`
+need their cards back first.
+
 Two separate generator cards on lava1 avoid the receive ceiling of a single dual-port adapter.
 The BlueField-3 is owned by the host (NIC mode) for `2n-genoa-bf3` and by its Arm cores (DPU
 mode) for `2n-bf3-arm`. Switching mode needs a cold power cycle; `labs/hw/bf-mode.sh nic|dpu`
 does it unattended (mlxconfig on the Arm, IPMI cycle of epyc-sp5, verify), and the suite
 scripts call it so each run finds the card in the mode it needs.
+
+## epyc-sp5 host changes
+
+| Change | Since | Where | Effect |
+|---|---|---|---|
+| BlueField-3 removed, alice's ConnectX-8 fitted in CPU SLOT5 (`41:00.0/.1`), cabled port to port with bob | 2026-10-07 | by hand | new rig `epyc-cx8`; card links at PCIe Gen5 x16 (the card is Gen6) |
+| `isolcpus`, `nohz_full`, `rcu_nocbs` widened from `1-32` to `1-63` | 2026-10-07 | `/etc/default/grub` by hand (backup `grub.bak-20261007`) | lets VPP run up to 62 workers; VPP refuses 63 (`VPP_MAX_WORKERS` 64 counts the main thread) |
+
+Unlike alice and bob, epyc-sp5 boots without `iommu=pt` (IOMMU in translated mode, lazy flush)
+and has no MFT on the host, so `mellanox-init` runs inside the DUT image, which therefore carries
+`pciutils` for `mlxfwreset`. Its MACs are `LAB_MAC_LEFT_epyc_cx8` / `LAB_MAC_RIGHT_epyc_cx8` in `lab.env`.
 
 ## Access from CI
 
