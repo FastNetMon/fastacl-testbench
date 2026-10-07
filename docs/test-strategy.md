@@ -84,6 +84,7 @@ test (DUT), connected back to back by 100 GbE DACs, with no switch in between.
 
 Since 2026-10-07 epyc-sp5 carries alice's ConnectX-8 and the BlueField-3 is out of the box, so
 `2n-genoa-bf3`, `2n-bf3-arm` and `2n-zen5-cx8` cannot run until the cards go back (see `docs/lab.md`).
+`2n-genoa-cx8` runs 32 VPP workers: more receive queues make the ConnectX-8 drop at the port.
 
 The DUT runs **bridged**: an L2 cross-connect with FastACL on the `l2-input` arcs. Lab machines, cabling
 and access are described in `docs/lab.md`.

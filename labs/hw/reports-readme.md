@@ -13,7 +13,7 @@ reference rigs. Methodology, topology and thresholds: [test strategy](../docs/te
 | `server1` | AMD EPYC 7742 (64 cores), ConnectX-7, VPP on x86 | Ryzen 7 5800X + ConnectX-7, TRex |
 | `epyc-sp5` | AMD EPYC 9534 (64 cores), BlueField-3 in NIC mode, VPP on x86 | Ryzen 9 9950X + 2× ConnectX-5 Ex, TRex |
 | `bluefield3` | BlueField-3 Arm (16× Cortex-A78AE) in DPU mode, VPP on the Arm cores | Ryzen 9 9950X + 2× ConnectX-5 Ex, TRex |
-| `epyc-cx8` | AMD EPYC 9534 (64 cores), ConnectX-8 at 400G, VPP on x86 (48 workers unless the report says otherwise) | bob: Ryzen 9 9950X + ConnectX-8, TRex built from source |
+| `epyc-cx8` | AMD EPYC 9534 (64 cores), ConnectX-8 at 400G, VPP on x86 (32 workers unless the report says otherwise) | bob: Ryzen 9 9950X + ConnectX-8, TRex built from source |
 | `alice` | Ryzen 9 9950X (16 cores), ConnectX-8 at 400G, VPP on x86 (15 workers) | bob: Ryzen 9 9950X + ConnectX-8, TRex built from source |
 | `bob` | Ryzen 9 9950X (16 cores), ConnectX-8 at 400G, VPP on x86 (15 workers) | alice: Ryzen 9 9950X + ConnectX-8, TRex built from source |
 

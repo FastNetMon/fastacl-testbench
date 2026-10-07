@@ -135,6 +135,20 @@ scripts call it so each run finds the card in the mode it needs.
 | BlueField-3 removed, alice's ConnectX-8 fitted in CPU SLOT5 (`41:00.0/.1`), cabled port to port with bob | 2026-10-07 | by hand | new rig `epyc-cx8`; card links at PCIe Gen5 x16 (the card is Gen6) |
 | `isolcpus`, `nohz_full`, `rcu_nocbs` widened from `1-32` to `1-63` | 2026-10-07 | `/etc/default/grub` by hand (backup `grub.bak-20261007`) | lets VPP run up to 62 workers; VPP refuses 63 (`VPP_MAX_WORKERS` 64 counts the main thread) |
 
+**Run VPP with 32 workers on this rig** (the `epyc-cx8` default). Every worker owns one receive
+queue, and the ConnectX-8 loses packets at the port once more than 32 queues are active, as the
+ConnectX-7 does. A sweep on 2026-10-07 (32 / 48 / 62 workers, 300 Mpps offered) showed:
+
+| Scenario | 32 | 48 | 62 |
+|---|---|---|---|
+| 5 rules, 64 B, one flow set | 298 | 200 | — |
+| country-rules-drop | 235 | 294 | 207 |
+| 1M rules, mix-udptcp | 219 | 269 | 240 |
+| 1M rules, 983K active flows | 163 | 250 | 267 |
+
+48 or 62 workers only help the scenarios whose per-packet cost is high (hundreds of cycles); every
+light one loses 25-35 % in the NIC instead. Raise `DUT_POLL_WORKERS` only to study those.
+
 Unlike alice and bob, epyc-sp5 boots without `iommu=pt` (IOMMU in translated mode, lazy flush)
 and has no MFT on the host, so `mellanox-init` runs inside the DUT image, which therefore carries
 `pciutils` for `mlxfwreset`. Its MACs are `LAB_MAC_LEFT_epyc_cx8` / `LAB_MAC_RIGHT_epyc_cx8` in `lab.env`.
