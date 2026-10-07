@@ -13,6 +13,7 @@ reference rigs. Methodology, topology and thresholds: [test strategy](../docs/te
 | `server1` | AMD EPYC 7742 (64 cores), ConnectX-7, VPP on x86 | Ryzen 7 5800X + ConnectX-7, TRex |
 | `epyc-sp5` | AMD EPYC 9534 (64 cores), BlueField-3 in NIC mode, VPP on x86 | Ryzen 9 9950X + 2× ConnectX-5 Ex, TRex |
 | `bluefield3` | BlueField-3 Arm (16× Cortex-A78AE) in DPU mode, VPP on the Arm cores | Ryzen 9 9950X + 2× ConnectX-5 Ex, TRex |
+| `epyc-cx8` | AMD EPYC 9534 (64 cores), ConnectX-8 at 400G, VPP on x86 (48 workers unless the report says otherwise) | bob: Ryzen 9 9950X + ConnectX-8, TRex built from source |
 | `alice` | Ryzen 9 9950X (16 cores), ConnectX-8 at 400G, VPP on x86 (15 workers) | bob: Ryzen 9 9950X + ConnectX-8, TRex built from source |
 | `bob` | Ryzen 9 9950X (16 cores), ConnectX-8 at 400G, VPP on x86 (15 workers) | alice: Ryzen 9 9950X + ConnectX-8, TRex built from source |
 
@@ -94,6 +95,7 @@ This is the source the other two files are generated from (`labs/hw/report.py`).
 
 | Report | Rig | Suite | FastACL | VPP | DUT software | Result |
 |---|---|---|---|---|---|---|
+| [2026-10-07_1544_epyc-cx8_full](2026-10-07_1544_epyc-cx8_full/) | epyc-cx8 | full | 0.6.1 | v25.10-release · dpdk | Ubuntu 24.04.4 LTS, NIC firmware 40.50.1002 | CALIBRATION RUN (no verdict): 5 checks passed, 6 failed, 101 recorded measurements. 2026-10-07 13:32 UTC. |
 | [2026-10-07_1057_epyc-cx8_full](2026-10-07_1057_epyc-cx8_full/) | epyc-cx8 | full | 0.6.1 | v25.10-release · dpdk | Ubuntu 24.04.4 LTS, NIC firmware 40.50.1002 | CALIBRATION RUN (no verdict): 9 checks passed, 2 failed, 101 recorded measurements. 2026-10-07 09:02 UTC. |
 | [2026-10-05_1526_bob_full](2026-10-05_1526_bob_full/) | bob | full | 0.6.1 | v25.10-release · dpdk | Ubuntu 24.04.4 LTS, NIC firmware 40.50.1002 | CALIBRATION RUN (no verdict): 8 checks passed, 1 failed, 6 recorded measurements. 2026-10-05 15:16 UTC. |
 | [2026-10-05_1416_bob_full](2026-10-05_1416_bob_full/) | bob | full | 0.6.1 | v25.10-release · dpdk | Ubuntu 24.04.4 LTS, NIC firmware 40.50.1002 | CALIBRATION RUN (no verdict): 3 checks passed, 6 failed, 6 recorded measurements. 2026-10-05 14:05 UTC. |
