@@ -1,17 +1,25 @@
 # NIC limits measured in the lab
 
 Highest packet rates each adapter has reached in this lab, at 64 B frames (64 B before FCS,
-68 B on the wire) unless the row says otherwise. **TX** is the rate a card sends as a TRex
-generator. **RX** is the rate a card takes in as the DUT. "At least" means the sender ran out
-first, so the card's own limit is higher and still unmeasured.
+68 B on the wire) unless the row says otherwise.
 
-| NIC | Link | TX, one port | TX, whole card | RX, one port | RX, whole card | What sets the limit |
-|---|---|---|---|---|---|---|
-| ConnectX-5 Ex, dual port | 100G | 142 (line rate) | ~167 (flame1) | 140.4, zero discards (line rate) | **123** into VPP, both ports on one card | one packet engine shared by both ports; two separate cards gave 190 in total, then the Rome host's I/O die was the limit |
-| ConnectX-7, dual port | 100G | 139–140 (line rate) | **~278** | 142 into VPP (line rate) | at least **277–280** with hardware drop offload, zero discards; ~120 into VPP over both ports | TX: the card's packet rate. RX into VPP: loss at the port above ~32 active receive queues |
-| BlueField-3 B3240, NIC mode (ConnectX-7 inside) | 100G | — | — | 142 into VPP (line rate) | — | the sender (lava1); never driven harder |
-| BlueField-3, DPU mode (Arm VPP) | 100G | — | — | ~60 | ~60 | the 16 Arm cores, not the NIC |
-| ConnectX-8, dual port, Gen5 x16 slot | 400G | ~300 | **~300** | at least **298** into VPP (epyc-sp5, 32 workers) | ~300 | TX: the card's packet rate (NVIDIA's DPDK report also shows 299.6). RX: unknown, because bob can't send more |
+- **TX**: what the card sends as a TRex generator.
+- **NIC receive**: what the card takes in from the wire without loss at the port
+  (`rx_packets_phy` with no `rx_discards_phy`).
+- **VPP drop**: what FastACL in VPP receives and drops (5 drop rules), so CPU and memory count too.
+
+"At least" means the sender ran out first, so the card's own limit is higher and still unmeasured.
+
+| NIC | TX, one port | TX, whole card | NIC receive, one port | NIC receive, whole card | VPP drop, one port | VPP drop, whole card | What sets the limit |
+|---|---|---|---|---|---|---|---|
+| ConnectX-5 Ex, dual port, 100G | 142 (line rate) | ~167 (flame1) | 140.4 (line rate) | **~123**: the card discards ~56 % of 281 offered | 142 (line rate) | 123 | one packet engine shared by both ports. Two separate cards gave 190 in VPP, then the Rome host's I/O die was the limit |
+| ConnectX-7, dual port, 100G | 139–140 (line rate) | **~278** | 142 (line rate) | at least **277–280** | 127 (= offered by flame1) | ~120 | TX: the card's packet rate. VPP: loss at the port above ~32 active receive queues |
+| BlueField-3 B3240, NIC mode (ConnectX-7 inside), 100G | — | — | 142 (line rate) | — | 142 (line rate) | — | the sender (lava1); never driven harder |
+| BlueField-3, DPU mode (Arm VPP), 100G | — | — | — | — | ~60 | ~60 | the 16 Arm cores, not the NIC |
+| ConnectX-8, dual port, 400G, Gen5 x16 slot | ~300 | **~300** | at least ~300 | at least ~300 | **298** (epyc-sp5, 32 workers); 196–200 (alice) | at least 298 (all bob sends) | TX: the card's packet rate (NVIDIA's DPDK report also shows 299.6). Receive: unknown, because bob can't send more. On alice VPP is limited by CPU and memory |
+
+The ConnectX-7 also drops in hardware when the rules are offloaded to it: 272.8 of ~280 Mpps
+received, with nothing reaching VPP.
 
 All rates are in Mpps.
 
@@ -29,8 +37,6 @@ All rates are in Mpps.
 
 ## Notes
 
-- ConnectX-8 RX on Ryzen hosts (alice, bob) is lower, 196–200 Mpps, because their CPU and
-  dual-channel memory run out first, not the card.
 - epyc-sp5 with the ConnectX-8 sometimes starts in a state where the card drops a fixed ~10.4 %
   at the port (`rx_discards_phy`) whatever the load, which caps it at ~269 Mpps. The suspect is
   the IOMMU running in translated mode; a reboot with `iommu=pt` is still to be tried.
