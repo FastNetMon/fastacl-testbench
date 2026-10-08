@@ -7,6 +7,7 @@ Hardware-lab tooling, HW line-rate CI and published performance results for
 |---|---|
 | Strategy | [docs/test-strategy.md](docs/test-strategy.md): layers, topologies, methodology, thresholds, reporting |
 | Lab | [docs/lab.md](docs/lab.md): machines, cabling, access |
+| NIC limits | [docs/nic-limits.md](docs/nic-limits.md): highest TX and RX rates per adapter |
 | Reports | [reports/](reports/): one folder per full-suite hardware run, named by date and time |
 
 ## Layout
@@ -16,7 +17,7 @@ labs/hw/         hardware bench: bring-up, generator, DUT, suites, report
 labs/hw/dpu/     BlueField-3 Arm bench
 labs/hw/profiles per-DUT thresholds
 docker/          TRex generator image, DUT image (built from a FastACL release bundle)
-docs/            strategy, lab
+docs/            strategy, lab, NIC limits
 ```
 
 ## How it is used
