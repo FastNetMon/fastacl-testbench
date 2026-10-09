@@ -22,7 +22,7 @@ gen_c() { $SSH "$GEN_SSH" "docker exec \$(docker ps -q --filter name=hw-gen | he
 
 dut_up() {
   $SSH "$DUT_SSH" "sg docker -c 'docker ps -aq --filter name=hw-dut | xargs -r docker rm -f' >/dev/null 2>&1
-    cd $REPO && DUT=$DUT DUT_RX_DESC=${DUT_RX_DESC:-} DUT_DRIVER=${DUT_DRIVER:-dpdk} SINK_PORTS='$SINK_PORTS' sg docker -c 'docker compose -f labs/hw/compose.yaml run -d --name hw-dut-sink dut /src/labs/hw/dut/start-sink.sh'" >/dev/null || return 1
+    cd $REPO && DUT=$DUT DUT_RX_DESC=${DUT_RX_DESC:-} DUT_DRIVER=${DUT_DRIVER:-dpdk} SINK_CORELIST=${SINK_CORELIST:-} DUT_BUFFERS_PER_NUMA=${DUT_BUFFERS_PER_NUMA:-} DUT_DEVARGS='${DUT_DEVARGS:-}' SINK_PORTS='$SINK_PORTS' sg docker -c 'docker compose -f labs/hw/compose.yaml run -d --name hw-dut-sink dut /src/labs/hw/dut/start-sink.sh'" >/dev/null || return 1
   local i
   for i in $(seq 1 60); do
     sleep 10

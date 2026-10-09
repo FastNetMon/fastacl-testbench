@@ -12,6 +12,9 @@ services:
       - DUT_RX_DESC=${DUT_RX_DESC:-}
       - DUT_TX_DESC=${DUT_TX_DESC:-}
       - SINK_PORTS=${SINK_PORTS:-}
+      - SINK_CORELIST=${SINK_CORELIST:-}
+      - DUT_BUFFERS_PER_NUMA=${DUT_BUFFERS_PER_NUMA:-}
+      - DUT_DEVARGS=${DUT_DEVARGS:-}
     volumes:
       - ../..:/src
       - /dev/hugepages:/dev/hugepages

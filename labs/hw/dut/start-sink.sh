@@ -48,7 +48,7 @@ memory {
 }
 cpu {
   main-core $DUT_MAIN_CORE
-  corelist-workers 1-$workers
+  corelist-workers ${SINK_CORELIST:-1-$workers}
 }
 buffers { buffers-per-numa ${DUT_BUFFERS_PER_NUMA:-2097152} }
 plugins {

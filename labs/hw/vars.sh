@@ -56,8 +56,8 @@ case "$DUT" in
     # pci:name:rx-queues:kernel-iface, in TRex port order (gen port i feeds sink port i).
     # 32 workers: at full load VPP drops 346 Mpps with 32, 148 with 62 (buffer-pool contention).
     SINK_PORTS="${SINK_PORTS:-0000:41:00.1:cx8a-p1:8:enp65s0f1np1 0000:0a:00.1:cx8b-p1:8:enp10s0f1np1 0000:0a:00.0:cx8b-p0:4:enp10s0f0np0 0000:41:00.0:cx8a-p0:4:enp65s0f0np0 0000:03:00.0:bf3-p0:4:enp3s0f0np0 0000:03:00.1:bf3-p1:4:enp3s0f1np1}"
-    # These ports carry a ConnectX-5 DAC that links only with autonegotiation off.
-    SINK_FORCE_100G="${SINK_FORCE_100G:-enp65s0f0np0}"
+    # These ports carry ConnectX-5 DACs that link reliably only with autonegotiation off.
+    SINK_FORCE_100G="${SINK_FORCE_100G:-enp65s0f0np0 enp10s0f0np0}"
     ;;
   alice|bob)
     DUT_HOST_VAR="LAB_HOST_$DUT"; DUT_HOST="${!DUT_HOST_VAR:-}"
@@ -170,7 +170,7 @@ case "$GEN" in
     GEN_IFACE0="enp129s0f1np1"
     GEN_IFACE1="enp194s0f0np0"
     TREX_PCI_LIST="${TREX_PCI_LIST:-0000:81:00.1 0000:c2:00.0 0000:01:00.1 0000:01:00.0 0000:82:00.0 0000:c1:00.0}"
-    GEN_FORCE_100G="${GEN_FORCE_100G:-enp1s0f0np0}"
+    GEN_FORCE_100G="${GEN_FORCE_100G:-enp1s0f0np0 enp1s0f1np1}"
     TREX_PORT_MTU=9000
     TREX_MASTER_CORE=0
     TREX_LATENCY_CORE=63
