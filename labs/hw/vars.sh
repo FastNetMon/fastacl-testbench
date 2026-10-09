@@ -54,7 +54,8 @@ case "$DUT" in
     DUT_LEFT_MAC_DEFAULT=""; DUT_RIGHT_MAC_DEFAULT=""
     DUT_IPMI_HOST="${LAB_IPMI_HOST_epyc:-}"; DUT_IPMI_USER="${LAB_IPMI_USER_epyc:-}"; DUT_IPMI_PASS="${LAB_IPMI_PASS_epyc:-}"
     # pci:name:rx-queues:kernel-iface, in TRex port order (gen port i feeds sink port i).
-    SINK_PORTS="${SINK_PORTS:-0000:41:00.1:cx8a-p1:16:enp65s0f1np1 0000:0a:00.1:cx8b-p1:16:enp10s0f1np1 0000:0a:00.0:cx8b-p0:8:enp10s0f0np0 0000:41:00.0:cx8a-p0:8:enp65s0f0np0 0000:03:00.0:bf3-p0:7:enp3s0f0np0 0000:03:00.1:bf3-p1:7:enp3s0f1np1}"
+    # 32 workers: at full load VPP drops 346 Mpps with 32, 148 with 62 (buffer-pool contention).
+    SINK_PORTS="${SINK_PORTS:-0000:41:00.1:cx8a-p1:8:enp65s0f1np1 0000:0a:00.1:cx8b-p1:8:enp10s0f1np1 0000:0a:00.0:cx8b-p0:4:enp10s0f0np0 0000:41:00.0:cx8a-p0:4:enp65s0f0np0 0000:03:00.0:bf3-p0:4:enp3s0f0np0 0000:03:00.1:bf3-p1:4:enp3s0f1np1}"
     # These ports carry a ConnectX-5 DAC that links only with autonegotiation off.
     SINK_FORCE_100G="${SINK_FORCE_100G:-enp65s0f0np0}"
     ;;

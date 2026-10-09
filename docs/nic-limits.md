@@ -31,12 +31,14 @@ Two ConnectX-8 and the BlueField-3 in one EPYC 9534, fed by six server1 ports (`
 |---|---|
 | server1 sends, six ports | 893 |
 | epyc-sp5 NICs receive | ~875 |
-| VPP drops, best stage (both ConnectX-7 into the two ConnectX-8) | ~296 |
-| VPP drops, all six ports | ~148 |
+| VPP drops, all six ports, 32 workers | **346** |
+| VPP drops, all six ports, 62 workers | 148 |
 
-VPP takes in less as load grows: its workers spend most of their time allocating and freeing
-packet buffers from one shared pool (`dpdk_ops_vpp_dequeue` 55 %, `error_drop` 20 %, the filter
-5 %). The NICs are not the limit. Report: `reports/` entries named `*_epyc-platform_platform`.
+More VPP workers make it worse: with 62 workers each spends most of its time allocating and
+freeing packet buffers from VPP's one shared pool (`dpdk_ops_vpp_dequeue` 55 %, `error_drop` 20 %,
+the filter 5 %). Full load, one trial each: 16 workers 212, 24 → 296, 32 → 346, 48 → 191,
+62 → 148 Mpps. The NICs are not the limit. The published report (`*_epyc-platform_platform`,
+2026-10-09) ran 62 workers; the bench now defaults to 32.
 
 ## ConnectX-8 at other frame sizes
 

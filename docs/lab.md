@@ -127,6 +127,9 @@ only at a forced 100G with autonegotiation off on both ends; `GEN_FORCE_100G` an
 `SINK_FORCE_100G` in `vars.sh` make `perf-tune.sh` do that. Run it with
 `labs/hw/run.sh epyc-platform platform` (`labs/hw/platform-ceiling.sh`): stages add generator cards
 one group at a time, small frames only. TRex takes at most 48 data-plane cores, 16 per port pair.
+VPP runs 32 workers there, one receive queue each (8 per ConnectX-7-fed port, 4 on the others).
+With all six ports loaded it drops 212 / 296 / 346 / 191 / 148 Mpps at 16 / 24 / 32 / 48 / 62
+workers (2026-10-09): more workers fight over VPP's single buffer pool.
 
 On 2026-10-09 alice, bob, flame1 and lava1 were offline: bob's ConnectX-8 is in epyc-sp5, so only
 `epyc-platform` runs.
