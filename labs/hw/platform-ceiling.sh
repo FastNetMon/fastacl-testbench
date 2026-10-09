@@ -77,15 +77,16 @@ vpp_snap() {
 
 rig() {
   local d g
-  d=$($SSH "$DUT_SSH" 'printf "%s|%s|%s|%s\n" "$(lscpu | sed -n "s/^Model name: *//p")" "$(nproc --all)" "$(uname -r)" \
+  d=$($SSH "$DUT_SSH" 'printf "%s|%s|%s|%s|%s|%s\n" "$(lscpu | sed -n "s/^Model name: *//p")" "$(nproc --all)" "$(uname -r)" \
+      "$(ls -d /sys/devices/system/node/node[0-9]* | wc -l)" "$(grep -o "iommu=pt" /proc/cmdline || echo translated)" \
       "$(sudo dmidecode -t memory 2>/dev/null | grep -cE "^\\s+Size: [0-9]+ GB") x $(sudo dmidecode -t memory 2>/dev/null | sed -n "s/^\s*Configured Memory Speed: //p" | sort -u | head -1)"')
   g=$($SSH "$GEN_SSH" 'printf "%s|%s\n" "$(lscpu | sed -n "s/^Model name: *//p")" "$(nproc --all)"')
-  python3 - "$d" "$g" "${GEN_IMAGE:-}" "$SINK_PORTS" "$TREX_PCI_LIST" <<'PY' >> "$RESULTS_FILE"
-import json, sys, time
+  DUT_BUFFERS_PER_NUMA="$DUT_BUFFERS_PER_NUMA" python3 - "$d" "$g" "${GEN_IMAGE:-}" "$SINK_PORTS" "$TREX_PCI_LIST" <<'PY' >> "$RESULTS_FILE"
+import json, os, sys, time
 d, g, image, sink, gen = sys.argv[1].split("|"), sys.argv[2].split("|"), sys.argv[3], sys.argv[4].split(), sys.argv[5].split()
 print(json.dumps({"ts": int(time.time()), "bench": "rig", "kind": "platform", "dut_cpu": d[0], "dut_cores": int(d[1]),
-                  "dut_kernel": d[2], "dut_memory": d[3], "gen_cpu": g[0], "gen_cores": int(g[1]), "trex_image": image,
-                  "vpp_workers": sum(int(e.split(":")[4]) for e in sink),
+                  "dut_kernel": d[2], "dut_numa_nodes": int(d[3]), "dut_iommu": d[4], "dut_memory": d[5], "gen_cpu": g[0], "gen_cores": int(g[1]), "trex_image": image,
+                  "vpp_workers": sum(int(e.split(":")[4]) for e in sink), "buffers_per_numa": os.environ.get("DUT_BUFFERS_PER_NUMA", ""),
                   "ports": [{"gen": gen[i], "dut": e.split(":")[3], "queues": int(e.split(":")[4])} for i, e in enumerate(sink)],
                   "verdict": "INFO"}))
 PY

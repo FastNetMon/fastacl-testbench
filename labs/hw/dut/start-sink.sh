@@ -11,6 +11,11 @@ source "$LAB_DIR/../common/vpp.sh"
 
 [ -n "${SINK_PORTS:-}" ] || { echo "ERROR: SINK_PORTS is empty (DUT=$DUT)" >&2; exit 1; }
 
+nodes=$(ls -d /sys/devices/system/node/node[0-9]* | wc -l)
+if [ -n "${SINK_NUMA_NODES:-}" ] && [ "$nodes" != "$SINK_NUMA_NODES" ]; then
+  echo "WARNING: $nodes NUMA node(s), this rig expects $SINK_NUMA_NODES (BIOS: labs/hw/setup/bios-numa.py)"
+fi
+
 workers=0
 for e in $SINK_PORTS; do workers=$((workers + $(cut -d: -f5 <<<"$e"))); done
 echo "=== FastACL sink: every port ingress, $workers workers ==="

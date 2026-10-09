@@ -165,9 +165,11 @@ def platform_rig_table(rig, meta):
         ("Topology", f"{meta['gen']} (TRex, six ports) cabled port to port to {meta['dut']}, no switch; "
                      "every DUT port is an ingress and drops everything"),
         ("DUT CPU", f"{rig.get('dut_cpu', '?')} ({fmt(rig.get('dut_cores'))} CPUs), memory {rig.get('dut_memory', '?')}"),
-        ("DUT kernel", rig.get("dut_kernel", "?")),
+        ("DUT kernel", f"{rig.get('dut_kernel', '?')}, IOMMU {rig.get('dut_iommu', '?')}"),
+        ("DUT NUMA", f"{fmt(rig.get('dut_numa_nodes'))} node(s) (BIOS NUMA nodes per socket)" if rig.get("dut_numa_nodes") else ""),
         ("DUT ports", ports),
-        ("VPP", f"{fmt(rig.get('vpp_workers'))} worker threads, one receive queue each"),
+        ("VPP", f"{fmt(rig.get('vpp_workers'))} worker threads, one receive queue each"
+                + (f", {rig['buffers_per_numa']} buffers per NUMA node" if rig.get("buffers_per_numa") else "")),
         ("Generator", f"{rig.get('gen_cpu', '?')} ({fmt(rig.get('gen_cores'))} CPUs), TRex {rig.get('trex_image', '')}"),
         ("FastACL", f"release {meta['release']}, 5 drop rules (`5rules-drop`)"),
         ("Testbench", meta["testbench"]),

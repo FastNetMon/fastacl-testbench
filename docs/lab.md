@@ -127,9 +127,31 @@ only at a forced 100G with autonegotiation off on both ends; `GEN_FORCE_100G` an
 `SINK_FORCE_100G` in `vars.sh` make `perf-tune.sh` do that. Run it with
 `labs/hw/run.sh epyc-platform platform` (`labs/hw/platform-ceiling.sh`): stages add generator cards
 one group at a time, small frames only. TRex takes at most 48 data-plane cores, 16 per port pair.
-VPP runs 32 workers there, one receive queue each (8 per ConnectX-7-fed port, 4 on the others).
-With all six ports loaded it drops 212 / 296 / 346 / 191 / 148 Mpps at 16 / 24 / 32 / 48 / 62
-workers (2026-10-09): more workers fight over VPP's single buffer pool.
+VPP runs 62 workers there, one receive queue each, with 524,288 buffers per NUMA node, and needs
+the BIOS at NPS4 (below).
+
+### Tuning epyc-sp5 for the platform ceiling (2026-10-09)
+
+All six ports loaded, 64 B, VPP dropping everything; one trial unless noted:
+
+| Host setting | 16 w | 24 w | 32 w | 48 w | 62 w |
+|---|---|---|---|---|---|
+| NPS1 (one NUMA node), IOMMU translated | 212 | 296 | 346–355 | 191 | 148 |
+| NPS1, `iommu=pt` | | | 328 | | 150 |
+| **NPS4, `iommu=pt`** | | | 329–336 | 363 | **420–442** (3 trials) |
+| NPS4 + L3 cache as NUMA domain (8 nodes) | | | 332 | 389 | 356–403 (3 trials) |
+| NPS4, mlx5 Multi-Packet RQ (`mprq_en=1`) | | | | | 401 |
+
+With one NUMA node VPP has one buffer pool, and its workers spend most of their time on it
+(`dpdk_ops_vpp_dequeue` 55 %, `error_drop` 20 %, the filter 5 % of a worker at 62 workers), so
+more workers lose throughput. NPS4 gives four pools and turns the curve around. `iommu=pt` and
+Multi-Packet RQ change nothing measurable; L3-as-NUMA is worse than NPS4 alone.
+
+The BIOS options are Advanced > ACPI Settings > *NUMA Nodes Per Socket* and *ACPI SRAT L3 Cache
+As NUMA Domain*. Redfish refuses BIOS settings on this BMC (no DCMS licence), so
+`labs/hw/setup/bios-numa.py --nps 4` sets them through the BMC's HTML5 KVM (Playwright through a
+SOCKS tunnel to the lab proxy), reboots and checks `numactl -H`. The sink warns when the node
+count differs from `SINK_NUMA_NODES`, and every platform report shows it.
 
 On 2026-10-09 alice, bob, flame1 and lava1 were offline: bob's ConnectX-8 is in epyc-sp5, so only
 `epyc-platform` runs.
@@ -158,6 +180,8 @@ scripts call it so each run finds the card in the mode it needs.
 |---|---|---|---|
 | BlueField-3 removed, alice's ConnectX-8 fitted in CPU SLOT5 (`41:00.0/.1`), cabled port to port with bob | 2026-10-07 | by hand | new rig `epyc-cx8`; card links at PCIe Gen5 x16 (the card is Gen6) |
 | bob's ConnectX-8 added (`0a:00.0/.1`), BlueField-3 refitted (`03:00`), all cabled to server1 | 2026-10-09 | by hand | new rig `epyc-platform` |
+| `iommu=pt` added to the kernel command line (backup `grub.bak-20261009`) | 2026-10-09 | `/etc/default/grub` | no throughput change; matches the other hosts |
+| BIOS NUMA Nodes Per Socket: Auto (NPS1) → **NPS4** | 2026-10-09 | `setup/bios-numa.py` | VPP drops 431 Mpps instead of 148 with 62 workers (see tuning above) |
 | `isolcpus`, `nohz_full`, `rcu_nocbs` widened from `1-32` to `1-63` | 2026-10-07 | `/etc/default/grub` by hand (backup `grub.bak-20261007`) | lets VPP run up to 62 workers; VPP refuses 63 (`VPP_MAX_WORKERS` 64 counts the main thread) |
 
 **Run VPP with 32 workers on this rig** (the `epyc-cx8` default). Every worker owns one receive
@@ -174,8 +198,8 @@ ConnectX-7 does. A sweep on 2026-10-07 (32 / 48 / 62 workers, 300 Mpps offered) 
 48 or 62 workers only help the scenarios whose per-packet cost is high (hundreds of cycles); every
 light one loses 25-35 % in the NIC instead. Raise `DUT_POLL_WORKERS` only to study those.
 
-Unlike alice and bob, epyc-sp5 boots without `iommu=pt` (IOMMU in translated mode, lazy flush)
-and has no MFT on the host, so `mellanox-init` runs inside the DUT image, which therefore carries
+Until 2026-10-09 epyc-sp5 booted without `iommu=pt` (IOMMU in translated mode, lazy flush). It
+has no MFT on the host, so `mellanox-init` runs inside the DUT image, which therefore carries
 `pciutils` for `mlxfwreset`. Its MACs are `LAB_MAC_LEFT_epyc_cx8` / `LAB_MAC_RIGHT_epyc_cx8` in `lab.env`.
 
 ## Access from CI
