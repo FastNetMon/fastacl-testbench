@@ -56,7 +56,7 @@ case "$DUT" in
     # pci:name:rx-queues:kernel-iface, in TRex port order (gen port i feeds sink port i).
     # Needs the BIOS at NPS4 (setup/bios-numa.py --nps 4): VPP keeps one buffer pool
     # per NUMA node, and with one node 62 workers contend on it (148 Mpps at full
-    # load, 346 with 32 workers).  At NPS4, 62 workers drop ~431 Mpps.
+    # load, 346 with 32 workers).  At NPS4, 62 workers drop ~450 Mpps.
     SINK_NUMA_NODES="${SINK_NUMA_NODES:-4}"
     DUT_BUFFERS_PER_NUMA="${DUT_BUFFERS_PER_NUMA:-524288}"
     SINK_PORTS="${SINK_PORTS:-0000:41:00.1:cx8a-p1:16:enp65s0f1np1 0000:0a:00.1:cx8b-p1:16:enp10s0f1np1 0000:0a:00.0:cx8b-p0:8:enp10s0f0np0 0000:41:00.0:cx8a-p0:8:enp65s0f0np0 0000:03:00.0:bf3-p0:7:enp3s0f0np0 0000:03:00.1:bf3-p1:7:enp3s0f1np1}"

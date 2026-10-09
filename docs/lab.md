@@ -138,7 +138,7 @@ All six ports loaded, 64 B, VPP dropping everything; one trial unless noted:
 |---|---|---|---|---|---|
 | NPS1 (one NUMA node), IOMMU translated | 212 | 296 | 346–355 | 191 | 148 |
 | NPS1, `iommu=pt` | | | 328 | | 150 |
-| **NPS4, `iommu=pt`** | | | 329–336 | 363 | **420–442** (3 trials) |
+| **NPS4, `iommu=pt`** | | | 329–336 | 363 | **420–464** (6 trials; full report 2026-10-09_1331: 450) |
 | NPS4 + L3 cache as NUMA domain (8 nodes) | | | 332 | 389 | 356–403 (3 trials) |
 | NPS4, mlx5 Multi-Packet RQ (`mprq_en=1`) | | | | | 401 |
 
@@ -181,7 +181,7 @@ scripts call it so each run finds the card in the mode it needs.
 | BlueField-3 removed, alice's ConnectX-8 fitted in CPU SLOT5 (`41:00.0/.1`), cabled port to port with bob | 2026-10-07 | by hand | new rig `epyc-cx8`; card links at PCIe Gen5 x16 (the card is Gen6) |
 | bob's ConnectX-8 added (`0a:00.0/.1`), BlueField-3 refitted (`03:00`), all cabled to server1 | 2026-10-09 | by hand | new rig `epyc-platform` |
 | `iommu=pt` added to the kernel command line (backup `grub.bak-20261009`) | 2026-10-09 | `/etc/default/grub` | no throughput change; matches the other hosts |
-| BIOS NUMA Nodes Per Socket: Auto (NPS1) → **NPS4** | 2026-10-09 | `setup/bios-numa.py` | VPP drops 431 Mpps instead of 148 with 62 workers (see tuning above) |
+| BIOS NUMA Nodes Per Socket: Auto (NPS1) → **NPS4** | 2026-10-09 | `setup/bios-numa.py` | VPP drops 450 Mpps instead of 148 with 62 workers (see tuning above) |
 | `isolcpus`, `nohz_full`, `rcu_nocbs` widened from `1-32` to `1-63` | 2026-10-07 | `/etc/default/grub` by hand (backup `grub.bak-20261007`) | lets VPP run up to 62 workers; VPP refuses 63 (`VPP_MAX_WORKERS` 64 counts the main thread) |
 
 **Run VPP with 32 workers on this rig** (the `epyc-cx8` default). Every worker owns one receive

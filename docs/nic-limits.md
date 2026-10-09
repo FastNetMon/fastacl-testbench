@@ -31,13 +31,13 @@ Two ConnectX-8 and the BlueField-3 in one EPYC 9534, fed by six server1 ports (`
 |---|---|
 | server1 sends, six ports | 893 |
 | epyc-sp5 NICs receive | ~875 |
-| VPP drops, all six ports, NPS4, 62 workers | **431** (median of 3; 420–442) |
+| VPP drops, all six ports, NPS4, 62 workers | **450** (median of 3, 439–464; report 2026-10-09_1331) |
 | VPP drops, all six ports, NPS1, 32 workers | 355 |
 | VPP drops, all six ports, NPS1, 62 workers | 148 |
 
 With the BIOS at one NUMA node per socket (NPS1), VPP's workers share one packet-buffer pool and
 spend most of their time on it (`dpdk_ops_vpp_dequeue` 55 %, `error_drop` 20 %, the filter 5 %), so
-62 workers drop less than 32. NPS4 gives four pools: 62 workers then drop 431 Mpps. The NICs are
+62 workers drop less than 32. NPS4 gives four pools: 62 workers then drop 450 Mpps. The NICs are
 not the limit. Details and the other settings tried: `docs/lab.md`, "Tuning epyc-sp5".
 
 ## ConnectX-8 at other frame sizes
