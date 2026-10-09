@@ -10,6 +10,14 @@ Hardware-lab tooling, HW line-rate CI and published performance results for
 | NIC limits | [docs/nic-limits.md](docs/nic-limits.md): highest TX and RX rates per adapter |
 | Reports | [reports/](reports/): one folder per full-suite hardware run, named by date and time |
 
+## Headline results
+
+| Rig | Result | Where |
+|---|---|---|
+| `epyc-platform`: EPYC 9534, 2× ConnectX-8 + BlueField-3, six ports | **450 Mpps** of 64 B dropped by VPP, 62 workers, BIOS at NPS4 (148 at the default NPS1) | `reports/2026-10-09_1331_epyc-platform_platform`, tuning in `docs/lab.md` |
+| server1 as generator: 2× ConnectX-7 + 3× ConnectX-5 Ex | **893 Mpps** of 64 B from one TRex host | same report; FastNetMon/trex-reports `server1.md` |
+| ConnectX-8, one card | at least 311 Mpps received with no loss at the NIC; ~300 Mpps sent | `docs/nic-limits.md` |
+
 ## Layout
 
 ```
@@ -26,13 +34,13 @@ docs/            strategy, lab, NIC limits
   performance sanity on every push, against builds made with throwaway licence keys.
 - **Hardware runs** are GitHub Actions workflows in this repository: `hw-line-rate`, started
   manually (gate or full suite, on server1, epyc-sp5, epyc-cx8, epyc-platform, the bluefield3 DPU, alice and bob); the BNG
-  and generator-pair suites run from `run.sh`. They install the
+  generator-pair and platform suites run from `run.sh`. They install the
   licensed FastACL release bundle on the DUT, the same one customers receive. Nothing here
   builds or unlocks FastACL.
 - **One command per rig**: `labs/hw/run.sh <server1|epyc-sp5|epyc-cx8|epyc-platform|bluefield3|alice|bob> <gate|full|bng|pair|platform>` downloads
   the release bundle, syncs the lab hosts, switches the BlueField-3 between NIC and DPU mode when
   needed, brings up the DUT and generator, runs the suite, writes the report (published to
-  `reports/` for the full, bng and pair suites; never for the gate), and tears down. The workflow calls exactly this; it runs the same from any machine
+  `reports/` for the full, bng, pair and platform suites; never for the gate), and tears down. The workflow calls exactly this; it runs the same from any machine
   with `labs/hw/lab.env`, the lab SSH key and `gh` access to the FastACL releases.
 
 ## Where VPP and FastACL come from

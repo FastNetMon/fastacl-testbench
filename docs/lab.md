@@ -138,13 +138,21 @@ All six ports loaded, 64 B, VPP dropping everything; one trial unless noted:
 |---|---|---|---|---|---|
 | NPS1 (one NUMA node), IOMMU translated | 212 | 296 | 346–355 | 191 | 148 |
 | NPS1, `iommu=pt` | | | 328 | | 150 |
+| NPS1, 1024-entry receive rings | | | | | 135 |
 | **NPS4, `iommu=pt`** | | | 329–336 | 363 | **420–464** (6 trials; full report 2026-10-09_1331: 450) |
 | NPS4 + L3 cache as NUMA domain (8 nodes) | | | 332 | 389 | 356–403 (3 trials) |
 | NPS4, mlx5 Multi-Packet RQ (`mprq_en=1`) | | | | | 401 |
 
-With one NUMA node VPP has one buffer pool, and its workers spend most of their time on it
-(`dpdk_ops_vpp_dequeue` 55 %, `error_drop` 20 %, the filter 5 % of a worker at 62 workers), so
-more workers lose throughput. NPS4 gives four pools and turns the curve around. `iommu=pt` and
+Why: VPP keeps one packet-buffer pool per NUMA node. Every receive-ring refill
+(`dpdk_ops_vpp_dequeue`, `src/plugins/dpdk/buffer.c`) and every freed packet go through a 512-buffer
+per-thread cache and, when it runs empty or full, through the shared pool under one spinlock
+(`vlib_buffer_pool_get`/`put`, `src/vlib/buffer_funcs.h`). At NPS1 all 62 workers, on eight CPU
+dies, share that lock: `dpdk_ops_vpp_dequeue` takes 55 % of a worker, `error_drop` 20 %, the filter
+5 %, and `show runtime` shows 937 cycles per packet (dpdk-input 636, drop 193, filter 82). At NPS4
+a receive queue takes its buffers from the pool of the NIC's node (`src/plugins/dpdk/device/common.c`):
+ConnectX-8 A is on node 2 (24 workers), ConnectX-8 B and the BlueField-3 on node 3 (38 workers), and
+each pool's memory sits in that quadrant. The same 62 workers then spend 291 cycles per packet
+(dpdk-input 105, drop 17, filter 102) and allocation is 9 % of a worker. `iommu=pt` and
 Multi-Packet RQ change nothing measurable; L3-as-NUMA is worse than NPS4 alone.
 
 The BIOS options are Advanced > ACPI Settings > *NUMA Nodes Per Socket* and *ACPI SRAT L3 Cache
