@@ -95,6 +95,11 @@ GUARD=$!
 if [ "$SUITE" = pair ]; then
   say "suite pair"; "$HW/pair-ceiling.sh"
 elif [ "$SUITE" = platform ]; then
+  nodes=$($SSH "$LAB_SSH_USER@$DUT_HOST" 'ls -d /sys/devices/system/node/node[0-9]* | wc -l' 2>/dev/null)
+  if [ -n "${SINK_NUMA_NODES:-}" ] && [ "$nodes" != "$SINK_NUMA_NODES" ]; then
+    say "DUT has ${nodes:-?} NUMA node(s), the rig needs $SINK_NUMA_NODES: setting the BIOS"
+    python3 "$HW/setup/bios-numa.py" --nps "$SINK_NUMA_NODES" || fail_row "bios numa"
+  fi
   if fetch_bundle; then
     say "sync"; "$HW/sync-hosts.sh" &&
       say "DUT image" && $SSH "$LAB_SSH_USER@$DUT_HOST" "sg docker -c 'bash ~/${HOST_REPO}/labs/hw/dut-image.sh'" &&

@@ -150,8 +150,10 @@ Multi-Packet RQ change nothing measurable; L3-as-NUMA is worse than NPS4 alone.
 The BIOS options are Advanced > ACPI Settings > *NUMA Nodes Per Socket* and *ACPI SRAT L3 Cache
 As NUMA Domain*. Redfish refuses BIOS settings on this BMC (no DCMS licence), so
 `labs/hw/setup/bios-numa.py --nps 4` sets them through the BMC's HTML5 KVM (Playwright through a
-SOCKS tunnel to the lab proxy), reboots and checks `numactl -H`. The sink warns when the node
-count differs from `SINK_NUMA_NODES`, and every platform report shows it.
+SOCKS tunnel to the lab proxy), reboots and checks `numactl -H`. `run.sh epyc-platform platform`
+runs it by itself when the host's node count differs from `SINK_NUMA_NODES` (the machine running
+`run.sh` needs Python Playwright with Chromium for that), the sink warns about a mismatch, and every
+platform report shows the node count.
 
 On 2026-10-09 alice, bob, flame1 and lava1 were offline: bob's ConnectX-8 is in epyc-sp5, so only
 `epyc-platform` runs.
