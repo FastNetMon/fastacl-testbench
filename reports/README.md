@@ -96,6 +96,7 @@ This is the source the other two files are generated from (`labs/hw/report.py`).
 
 | Report | Rig | Suite | FastACL | VPP | DUT software | Result |
 |---|---|---|---|---|---|---|
+| [2026-10-09_1110_epyc-platform_platform](2026-10-09_1110_epyc-platform_platform/) | epyc-platform | platform |  |  | kernel 6.8.0-142-generic | CALIBRATION RUN (no verdict): 0 checks passed, 0 failed, 23 recorded measurements. 2026-10-09 10:52 UTC. |
 | [2026-10-09_1017_epyc-platform_platform](2026-10-09_1017_epyc-platform_platform/) | epyc-platform | platform |  |  | kernel 6.8.0-142-generic | CALIBRATION RUN (no verdict): 0 checks passed, 0 failed, 23 recorded measurements. 2026-10-09 10:00 UTC. |
 | [2026-10-07_1544_epyc-cx8_full](2026-10-07_1544_epyc-cx8_full/) | epyc-cx8 | full | 0.6.1 | v25.10-release · dpdk | Ubuntu 24.04.4 LTS, NIC firmware 40.50.1002 | CALIBRATION RUN (no verdict): 5 checks passed, 6 failed, 101 recorded measurements. 2026-10-07 13:32 UTC. |
 | [2026-10-07_1057_epyc-cx8_full](2026-10-07_1057_epyc-cx8_full/) | epyc-cx8 | full | 0.6.1 | v25.10-release · dpdk | Ubuntu 24.04.4 LTS, NIC firmware 40.50.1002 | CALIBRATION RUN (no verdict): 9 checks passed, 2 failed, 101 recorded measurements. 2026-10-07 09:02 UTC. |
