@@ -31,7 +31,7 @@ Two ConnectX-8 and the BlueField-3 in one EPYC 9534, fed by six server1 ports (`
 |---|---|
 | server1 sends, six ports | 893 |
 | epyc-sp5 NICs receive | ~875 |
-| VPP drops, all six ports, 32 workers | **346** |
+| VPP drops, all six ports, 32 workers | **355** (median of 3, report 2026-10-09_1110) |
 | VPP drops, all six ports, 62 workers | 148 |
 
 More VPP workers make it worse: with 62 workers each spends most of its time allocating and
