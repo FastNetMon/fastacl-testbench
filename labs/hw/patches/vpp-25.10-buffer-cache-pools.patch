@@ -1,0 +1,137 @@
+--- a/src/vlib/buffer.h	2026-08-21 16:42:37.966615380 +0300
++++ b/src/vlib/buffer.h	2026-10-09 18:16:47.406109511 +0300
+@@ -454,7 +454,8 @@
+ /* Forward declaration. */
+ struct vlib_main_t;
+ 
+-#define VLIB_BUFFER_POOL_PER_THREAD_CACHE_SZ 512
++#define VLIB_BUFFER_POOL_PER_THREAD_CACHE_SZ 4096
++#define VLIB_BUFFER_POOL_MAX_PER_NUMA 16
+ 
+ typedef struct
+ {
+@@ -506,6 +507,9 @@
+   vlib_buffer_alloc_free_callback_t *free_callback_fn;
+ 
+   u8 default_buffer_pool_index_for_numa[VLIB_BUFFER_MAX_NUMA_NODES];
++  u8 pool_index_for_numa[VLIB_BUFFER_MAX_NUMA_NODES][VLIB_BUFFER_POOL_MAX_PER_NUMA];
++  u32 pools_per_numa;
++  u32 thread_cache_size;
+ 
+   /* config */
+   u32 default_buffers_per_numa;
+--- a/src/vlib/buffer.c	2026-08-21 16:42:37.966615380 +0300
++++ b/src/vlib/buffer.c	2026-10-09 18:16:47.407582710 +0300
+@@ -735,9 +735,15 @@
+     return error;
+ 
+ buffer_pool_create:
+-  *index =
+-    vlib_buffer_pool_create (vm, vlib_buffer_get_default_data_size (vm),
+-			     physmem_map_index, "default-numa-%d", numa_node);
++  if (index != bm->default_buffer_pool_index_for_numa + numa_node)
++    *index = vlib_buffer_pool_create (
++      vm, vlib_buffer_get_default_data_size (vm), physmem_map_index,
++      "numa-%d-pool-%d", numa_node,
++      (int) (index - bm->pool_index_for_numa[numa_node]));
++  else
++    *index =
++      vlib_buffer_pool_create (vm, vlib_buffer_get_default_data_size (vm),
++			       physmem_map_index, "default-numa-%d", numa_node);
+ 
+   if (*index == (u8) ~ 0)
+     error = clib_error_return (0, "maximum number of buffer pools reached");
+@@ -871,6 +877,18 @@
+ 
+       if (first_valid_buffer_pool_index == 0xff)
+         first_valid_buffer_pool_index = index[0];
++
++      bm->pool_index_for_numa[numa_node][0] = index[0];
++      for (u32 k = 1; k < bm->pools_per_numa; k++)
++	{
++	  u8 *extra = &bm->pool_index_for_numa[numa_node][k];
++	  if ((err = vlib_buffer_main_init_numa_node (vm, numa_node, extra)))
++	    {
++	      clib_error_report (err);
++	      clib_error_free (err);
++	      *extra = index[0];
++	    }
++	}
+     }
+ 
+   if (first_valid_buffer_pool_index == (u8) ~ 0)
+@@ -952,12 +970,29 @@
+   bm = vm->buffer_main;
+   bm->log2_page_size = CLIB_MEM_PAGE_SZ_UNKNOWN;
+   memset (bm->buffers_per_numa, ~0, sizeof (bm->buffers_per_numa));
++  bm->pools_per_numa = 1;
++  bm->thread_cache_size = 512;
+ 
+   while (unformat_check_input (input) != UNFORMAT_END_OF_INPUT)
+     {
+       if (unformat (input, "buffers-per-numa %u",
+ 		    &bm->default_buffers_per_numa))
+ 	;
++      else if (unformat (input, "pools-per-numa %u", &bm->pools_per_numa))
++	{
++	  if (bm->pools_per_numa < 1 ||
++	      bm->pools_per_numa > VLIB_BUFFER_POOL_MAX_PER_NUMA)
++	    return clib_error_return (0, "pools-per-numa must be 1..%u",
++				      VLIB_BUFFER_POOL_MAX_PER_NUMA);
++	}
++      else if (unformat (input, "per-thread-cache %u",
++			 &bm->thread_cache_size))
++	{
++	  if (bm->thread_cache_size < 64 ||
++	      bm->thread_cache_size > VLIB_BUFFER_POOL_PER_THREAD_CACHE_SZ)
++	    return clib_error_return (0, "per-thread-cache must be 64..%u",
++				      VLIB_BUFFER_POOL_PER_THREAD_CACHE_SZ);
++	}
+       else if (unformat (input, "page-size %U", unformat_log2_page_size,
+ 			 &bm->log2_page_size))
+ 	;
+--- a/src/vlib/buffer_funcs.h	2026-08-21 16:42:37.967615385 +0300
++++ b/src/vlib/buffer_funcs.h	2026-10-09 18:16:47.406844002 +0300
+@@ -580,7 +580,7 @@
+     }
+ 
+   /* alloc bigger than cache - take buffers directly from main pool */
+-  if (n_buffers >= VLIB_BUFFER_POOL_PER_THREAD_CACHE_SZ)
++  if (n_buffers >= vm->buffer_main->thread_cache_size)
+     {
+       n_buffers = vlib_buffer_pool_get (vm, buffer_pool_index, buffers,
+ 					n_buffers);
+@@ -733,7 +733,7 @@
+     bm->free_callback_fn (vm, buffer_pool_index, buffers, n_buffers);
+ 
+   n_cached = bpt->n_cached;
+-  n_empty = VLIB_BUFFER_POOL_PER_THREAD_CACHE_SZ - n_cached;
++  n_empty = vm->buffer_main->thread_cache_size - n_cached;
+   if (n_buffers <= n_empty)
+     {
+       vlib_buffer_copy_indices (bpt->cached_buffers + n_cached,
+@@ -744,7 +744,7 @@
+ 
+   vlib_buffer_copy_indices (bpt->cached_buffers + n_cached,
+ 			    buffers + n_buffers - n_empty, n_empty);
+-  bpt->n_cached = VLIB_BUFFER_POOL_PER_THREAD_CACHE_SZ;
++  bpt->n_cached = vm->buffer_main->thread_cache_size;
+ 
+   clib_spinlock_lock (&bp->lock);
+   vlib_buffer_copy_indices (bp->buffers + bp->n_avail, buffers,
+--- a/src/plugins/dpdk/device/common.c	2026-08-21 16:42:37.858614840 +0300
++++ b/src/plugins/dpdk/device/common.c	2026-10-09 18:16:47.407704206 +0300
+@@ -230,6 +230,13 @@
+       dpdk_rx_queue_t *rxq = vec_elt_at_index (xd->rx_queues, j);
+       u8 bpidx = vlib_buffer_pool_get_default_for_numa (
+ 	vm, vnet_hw_if_get_rx_queue_numa_node (vnm, rxq->queue_index));
++      {
++	vlib_buffer_main_t *bm = vm->buffer_main;
++	u32 node = vnet_hw_if_get_rx_queue_numa_node (vnm, rxq->queue_index);
++	if (bm->pools_per_numa > 1 && node < VLIB_BUFFER_MAX_NUMA_NODES &&
++	    bm->pool_index_for_numa[node][0] == bpidx)
++	  bpidx = bm->pool_index_for_numa[node][j % bm->pools_per_numa];
++      }
+       vlib_buffer_pool_t *bp = vlib_get_buffer_pool (vm, bpidx);
+       struct rte_mempool *mp = dpdk_mempool_by_buffer_pool_index[bpidx];
+ 

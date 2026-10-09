@@ -155,6 +155,33 @@ each pool's memory sits in that quadrant. The same 62 workers then spend 291 cyc
 (dpdk-input 105, drop 17, filter 102) and allocation is 9 % of a worker. `iommu=pt` and
 Multi-Packet RQ change nothing measurable; L3-as-NUMA is worse than NPS4 alone.
 
+#### Buffer-path experiments at NPS4 (2026-10-09)
+
+62 workers, all six ports, median of 3 trials; the generator offered ~750-800 Mpps in this session
+(below the ~890 of the published runs), so compare rows within a block, not with the report.
+
+| Change | Mpps dropped | vs. baseline |
+|---|---|---|
+| *ACL plugin loaded* — default queue placement (port order) | 387 | |
+| NIC-local placement: ConnectX-8 A port 1 on node 2 cores, ConnectX-8 B port 1 on node 3 cores (`SINK_ORDER`, `SINK_CORELIST`) | 408 | +5 %; NIC discards 19 → 3 Mpps |
+| VPP rdma driver instead of DPDK (after the MAC fix below) | 336 | −15 %; buffer allocation gone from the profile, but `vlib_buffer_enqueue_to_next` 19 %, 10.7 packets per poll on average, 59 Mpps lost at the NIC |
+| *No ACL plugin* — stock VPP 25.10 | 414 | |
+| patched VPP, stock defaults | 425 | same as stock within noise |
+| patched VPP, `buffers { per-thread-cache 4096 }` | **459** | +8–11 % |
+| patched VPP, `buffers { pools-per-numa 4 }` (receive queue *j* uses pool *j* mod 4 of its NIC's node) | 434 | +2–5 %, within noise |
+| both | 456 | no gain over the cache alone |
+
+The patch is `labs/hw/patches/vpp-25.10-buffer-cache-pools.patch` (against the VPP tree of the
+release bundle; build with FastACL's `scripts/build-vpp-debs.sh`). It makes the per-thread
+buffer cache size (stock: 512, compile time) and the number of pools per NUMA node runtime
+options. The ACL plugin is built against stock VPP's buffer structures and must not be loaded
+into the patched VPP, hence `SINK_ACL=0` for those rows (`DUT_IMAGE=vpp-dut:patched`, extra
+`buffers` options through `SINK_BUFFERS_EXTRA`). It is an experiment, not part of any release.
+
+The rdma driver's interfaces start with a random MAC and only steer frames sent to it; the sink
+now sets each to its port's MAC (`set interface mac address`). Before that fix every packet went
+to the kernel and VPP received nothing.
+
 The BIOS options are Advanced > ACPI Settings > *NUMA Nodes Per Socket* and *ACPI SRAT L3 Cache
 As NUMA Domain*. Redfish refuses BIOS settings on this BMC (no DCMS licence), so
 `labs/hw/setup/bios-numa.py --nps 4` sets them through the BMC's HTML5 KVM (Playwright through a

@@ -13,6 +13,9 @@ services:
       - DUT_TX_DESC=${DUT_TX_DESC:-}
       - SINK_PORTS=${SINK_PORTS:-}
       - SINK_CORELIST=${SINK_CORELIST:-}
+      - SINK_ORDER=${SINK_ORDER:-}
+      - SINK_ACL=${SINK_ACL:-}
+      - SINK_BUFFERS_EXTRA=${SINK_BUFFERS_EXTRA:-}
       - DUT_BUFFERS_PER_NUMA=${DUT_BUFFERS_PER_NUMA:-}
       - DUT_DEVARGS=${DUT_DEVARGS:-}
     volumes:

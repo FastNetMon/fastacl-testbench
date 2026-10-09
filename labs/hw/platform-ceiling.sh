@@ -22,7 +22,7 @@ gen_c() { $SSH "$GEN_SSH" "docker exec \$(docker ps -q --filter name=hw-gen | he
 
 dut_up() {
   $SSH "$DUT_SSH" "sg docker -c 'docker ps -aq --filter name=hw-dut | xargs -r docker rm -f' >/dev/null 2>&1
-    cd $REPO && DUT=$DUT DUT_RX_DESC=${DUT_RX_DESC:-} DUT_DRIVER=${DUT_DRIVER:-dpdk} SINK_CORELIST=${SINK_CORELIST:-} DUT_BUFFERS_PER_NUMA=${DUT_BUFFERS_PER_NUMA:-} DUT_DEVARGS='${DUT_DEVARGS:-}' SINK_PORTS='$SINK_PORTS' sg docker -c 'docker compose -f labs/hw/compose.yaml run -d --name hw-dut-sink dut /src/labs/hw/dut/start-sink.sh'" >/dev/null || return 1
+    cd $REPO && DUT=$DUT DUT_RX_DESC=${DUT_RX_DESC:-} DUT_DRIVER=${DUT_DRIVER:-dpdk} SINK_CORELIST=${SINK_CORELIST:-} SINK_ORDER='${SINK_ORDER:-}' SINK_ACL=${SINK_ACL:-1} SINK_BUFFERS_EXTRA='${SINK_BUFFERS_EXTRA:-}' DUT_IMAGE=${DUT_IMAGE:-fastacl-dut:current} DUT_BUFFERS_PER_NUMA=${DUT_BUFFERS_PER_NUMA:-} DUT_DEVARGS='${DUT_DEVARGS:-}' SINK_PORTS='$SINK_PORTS' sg docker -c 'docker compose -f labs/hw/compose.yaml run -d --name hw-dut-sink dut /src/labs/hw/dut/start-sink.sh'" >/dev/null || return 1
   local i
   for i in $(seq 1 60); do
     sleep 10
@@ -31,6 +31,7 @@ dut_up() {
       { $SSH "$DUT_SSH" "sg docker -c 'docker logs hw-dut-sink 2>&1' | tail -20"; return 1; }
     [ "$i" = 60 ] && { echo "ERROR: sink VPP not ready" >&2; return 1; }
   done
+  [ "${SINK_ACL:-1}" = 1 ] || { echo "no ACL plugin: VPP drops every packet itself (no L3 on the ports)"; return 0; }
   dut_c "sh -c 'cd /src/labs/hw/dut && python3 load-scenario.py --scenario 5rules-drop'" | tail -1
 }
 
@@ -71,7 +72,7 @@ dut_snap() {
 vpp_snap() {
   dut_c "sh -c 'vppctl show fastacl aggregate-counters; vppctl show interface'" |
     awk '/Dropped:/ {d=$2} /^[a-z0-9-]+ +[0-9]+ +(up|down)/ {n=$1} /rx packets/ && n {r[n]=$NF}
-         END {printf "%s", d; for (k in r) printf " %s=%s", k, r[k]; printf "\n"}'
+         END {printf "%d", d; for (k in r) printf " %s=%s", k, r[k]; printf "\n"}'
   date +%s.%N
 }
 
@@ -130,7 +131,8 @@ tot = lambda k: round(sum(x[k] for x in per), 2)
 row = {"ts": int(time.time()), "bench": "platform", "scenario": name, "trial": trial, "frame": size,
        "ports": ",".join(x["port"] for x in per), "tx_mpps": tot("tx_mpps"), "nic_rx_mpps": tot("nic_rx_mpps"),
        "nic_lost_mpps": tot("nic_lost_mpps"), "vpp_rx_mpps": tot("vpp_rx_mpps"),
-       "vpp_drop_mpps": round((drop2 - drop1) / (vt2 - vt1) / 1e6, 2), "per_port": per, "verdict": "INFO"}
+       "vpp_drop_mpps": round((drop2 - drop1) / (vt2 - vt1) / 1e6, 2) if drop2 else tot("vpp_rx_mpps"),
+       "per_port": per, "verdict": "INFO"}
 print(json.dumps(row))
 PY
 }

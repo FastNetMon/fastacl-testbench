@@ -92,18 +92,26 @@ w=0
       IFS=: read -r _ _ _ name q iface <<<"$e"
       ip link set "$iface" up
       echo "create interface rdma host-if $iface name $name num-rx-queues $q rx-queue-size $DUT_RX_DESC tx-queue-size 1024 mode ${DUT_RDMA_MODE:-dv}"
+      # rdma picks a random MAC and only steers frames sent to it; use the port's own.
+      echo "set interface mac address $name $(cat /sys/class/net/$iface/address)"
     done
   fi
   for e in $SINK_PORTS; do
-    IFS=: read -r _ _ _ name q _ <<<"$e"
+    IFS=: read -r _ _ _ name _ _ <<<"$e"
     echo "set interface state $name up"
-    echo "set interface fastacl $name"
+    if [ "${SINK_ACL:-1}" = 1 ]; then echo "set interface fastacl $name"; fi
+  done
+  # Workers take the queues port by port, in SINK_ORDER (names) or SINK_PORTS order.
+  for name in ${SINK_ORDER:-$(for e in $SINK_PORTS; do cut -d: -f4 <<<"$e"; done)}; do
+    q=$(for e in $SINK_PORTS; do IFS=: read -r _ _ _ n c _ <<<"$e"; if [ "$n" = "$name" ]; then echo "$c"; fi; done)
     for i in $(seq 0 $((q - 1))); do
       echo "set interface rx-placement $name queue $i worker $w"
       w=$((w + 1))
     done
   done
 } > "$SETUP"
+[ "${SINK_ACL:-1}" = 1 ] || sed -i 's/plugin fastacl_plugin.so { enable }/plugin fastacl_plugin.so { disable }/; /^fastacl {/,/^}/d' "$CONF"
+[ -z "${SINK_BUFFERS_EXTRA:-}" ] || sed -i "s|^buffers { buffers-per-numa \([0-9]*\) }|buffers { buffers-per-numa \1 $SINK_BUFFERS_EXTRA }|" "$CONF"
 
 LIC=/tmp/fastacl-lab-license.json
 rm -f "$LIC" "$LIC.sig"
