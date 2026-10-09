@@ -9,13 +9,28 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 ROLE="${1:-}"
-case "$ROLE" in lava|flame|dell|alice|bob) export GEN="$ROLE" ;; esac
+case "$ROLE" in lava|flame|dell|alice|bob|server1) export GEN="$ROLE" ;; esac
 source "$SCRIPT_DIR/../vars.sh"
 
-if [[ ! "$ROLE" =~ ^(lava|flame|dell|alice|bob|dut)$ ]]; then
-  echo "Usage: $0 [lava|flame|dell|alice|bob|dut]"
+if [[ ! "$ROLE" =~ ^(lava|flame|dell|alice|bob|server1|dut)$ ]]; then
+  echo "Usage: $0 [lava|flame|dell|alice|bob|server1|dut]"
   exit 1
 fi
+
+_iface_of() { ls "/sys/bus/pci/devices/$1/net" 2>/dev/null | head -1; }
+if [ "$ROLE" = dut ]; then
+  if [ -n "${SINK_PORTS:-}" ]; then
+    TUNE_PCIS=$(for e in $SINK_PORTS; do cut -d: -f1-3 <<<"$e"; done)
+  else
+    TUNE_PCIS="$DUT_PCI_LEFT $DUT_PCI_RIGHT"
+  fi
+else
+  TUNE_PCIS="${TREX_PCI_LIST:-$SENDER_PCI $RECEIVER_PCI}"
+fi
+TUNE_IFACES=""
+for _p in $TUNE_PCIS; do TUNE_IFACES="$TUNE_IFACES $(_iface_of "$_p")"; done
+[ "$ROLE" != dut ] && [ -z "${TREX_PCI_LIST:-}" ] && TUNE_IFACES="$GEN_IFACE0 $GEN_IFACE1"
+[ "$ROLE" = dut ] && [ -z "${SINK_PORTS:-}" ] && TUNE_IFACES="$SERVER_KERNEL_IFACE0 $SERVER_KERNEL_IFACE1"
 
 echo "=== FastACL perf-tune ($ROLE) ==="
 
@@ -68,10 +83,7 @@ _mrr_1024() {
   fi
 }
 
-case "$ROLE" in
-  lava|flame|dell|alice|bob) _mrr_1024 "$SENDER_PCI";  _mrr_1024 "$RECEIVER_PCI"  ;;
-  dut)   _mrr_1024 "$DUT_PCI_LEFT"; _mrr_1024 "$DUT_PCI_RIGHT" ;;
-esac
+for _p in $TUNE_PCIS; do _mrr_1024 "$_p"; done
 
 echo ""
 echo "[4/8] NIC flow control → off..."
@@ -93,10 +105,7 @@ _fc_off() {
   fi
 }
 
-case "$ROLE" in
-  lava|flame|dell|alice|bob) _fc_off "$GEN_IFACE0";  _fc_off "$GEN_IFACE1"  ;;
-  dut)   _fc_off "$SERVER_KERNEL_IFACE0"; _fc_off "$SERVER_KERNEL_IFACE1" ;;
-esac
+for _i in $TUNE_IFACES; do _fc_off "$_i"; done
 
 echo ""
 echo "[5/8] RT scheduling: unrestricted..."
@@ -129,6 +138,13 @@ _link_100g() {
   ip link show "$iface" &>/dev/null 2>&1 || { echo "  $iface: not found — skip"; return 0; }
   command -v ethtool &>/dev/null          || { echo "  $iface: ethtool not available — skip (run from host)"; return 0; }
   local speed
+  case " ${SINK_FORCE_100G:-} ${GEN_FORCE_100G:-} " in
+    *" $iface "*)
+      ethtool -s "$iface" speed 100000 duplex full autoneg off 2>/dev/null || true
+      ip link set "$iface" up 2>/dev/null || true
+      echo "  $iface: forced 100 G, autonegotiation off (its cable links only that way)"
+      return 0 ;;
+  esac
   ip link set "$iface" down 2>/dev/null || true
   ethtool -s "$iface" autoneg on 2>/dev/null || true
   ip link set "$iface" up 2>/dev/null || true
@@ -152,10 +168,7 @@ _link_100g() {
   echo "  $iface: WARNING — still ${speed:-unknown} after 10 s"
 }
 
-case "$ROLE" in
-  lava|flame|dell|alice|bob) _link_100g "$GEN_IFACE0";  _link_100g "$GEN_IFACE1"  ;;
-  dut)   _link_100g "$SERVER_KERNEL_IFACE0"; _link_100g "$SERVER_KERNEL_IFACE1" ;;
-esac
+for _i in $TUNE_IFACES; do _link_100g "$_i"; done
 
 if [ "$ROLE" = "dut" ]; then
   echo ""
@@ -209,10 +222,10 @@ if [ "$ROLE" = "dut" ]; then
       sed 's/^/    /' || echo "  $pci: mlxfwreset failed (check /usr/lib64/mft libs)"
   }
 
-  _mlx_set_param "$DUT_PCI_LEFT"  CQE_COMPRESSION 1 "AGGRESSIVE(1)"
-  _mlx_set_param "$DUT_PCI_RIGHT" CQE_COMPRESSION 1 "AGGRESSIVE(1)"
-  _mlx_set_param "$DUT_PCI_LEFT"  PCI_WR_ORDERING 1 "1" "FOR_ALL_CONNECTIONS(1)"
-  _mlx_set_param "$DUT_PCI_RIGHT" PCI_WR_ORDERING 1 "1" "FOR_ALL_CONNECTIONS(1)"
+  for _p in $TUNE_PCIS; do
+    _mlx_set_param "$_p" CQE_COMPRESSION 1 "AGGRESSIVE(1)"
+    _mlx_set_param "$_p" PCI_WR_ORDERING 1 "1" "FOR_ALL_CONNECTIONS(1)"
+  done
 
   if [ -n "$_mlx_reset_pcis" ]; then
     echo ""
@@ -220,6 +233,8 @@ if [ "$ROLE" = "dut" ]; then
     for _pci in $_mlx_reset_pcis; do
       _mlxfwreset "$_pci"
     done
+    sleep 5
+    for _i in $TUNE_IFACES; do _link_100g "$_i"; done
   fi
 fi
 

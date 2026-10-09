@@ -8,11 +8,11 @@ on:
     inputs:
       dut:
         type: choice
-        options: [server1, epyc-sp5, epyc-cx8, bluefield3, alice, bob, all]
+        options: [server1, epyc-sp5, epyc-cx8, epyc-platform, bluefield3, alice, bob, all]
         default: server1
       suite:
         type: choice
-        options: [gate, full]
+        options: [gate, full, platform]
         default: gate
       release_tag:
         type: string

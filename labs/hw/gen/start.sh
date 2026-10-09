@@ -66,6 +66,11 @@ sed \
     -e "s|__TREX_SOCKET__|${TREX_SOCKET:-0}|g" \
     -e "s|__TREX_WORKER_LIST__|$TREX_WORKER_LIST|g" \
     "$CONF_DIR/trex_cfg.yaml.tmpl" > /etc/trex_cfg.yaml
+if [ -n "${TREX_PCI_LIST:-}" ]; then
+  TREX_CORES="${TREX_CORES:-$(python3 "$CONF_DIR/trex_cfg_multi.py" "$TREX_PCI_LIST" "$TREX_WORKER_LIST" \
+    "$TREX_MASTER_CORE" "$TREX_LATENCY_CORE" "${TREX_SOCKET:-0}")}"
+  echo "Rendered /etc/trex_cfg.yaml for $TREX_PCI_LIST ($TREX_CORES cores per port pair)"
+fi
 [ -n "${TREX_PORT_MTU:-}" ] && sed -i "/^  version /a\\  port_mtu        : $TREX_PORT_MTU" /etc/trex_cfg.yaml
 [ -n "${TREX_DEVARGS:-}" ] && sed -i "/^  version /a\\  dpdk_devargs    : [$(echo "$TREX_DEVARGS" | sed 's/[^,][^,]*/\"&\"/g')]" /etc/trex_cfg.yaml
 

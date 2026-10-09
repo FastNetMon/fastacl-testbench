@@ -7,7 +7,7 @@ export LC_ALL=C
 
 HW="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HW/../.." && pwd)"
-PROFILE="${1:?usage: run.sh <server1|epyc-sp5|epyc-cx8|bluefield3|alice|bob> [gate|full|bng|pair]}"
+PROFILE="${1:?usage: run.sh <server1|epyc-sp5|epyc-cx8|epyc-platform|bluefield3|alice|bob> [gate|full|bng|pair|platform]}"
 SUITE="${2:-gate}"
 export PROFILE SUITE DUT_PROFILE="$PROFILE" HOST_REPO="${HOST_REPO:-fastacl-testbench}"
 
@@ -22,7 +22,7 @@ export RELEASE_TAG="${RELEASE_TAG:-latest-main}"
 export TESTBENCH_SHA="${TESTBENCH_SHA:-$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null)$(git -C "$ROOT" diff --quiet HEAD 2>/dev/null || echo -dirty)}"
 [ -n "${GITHUB_RUN_ID:-}" ] && export RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 VPP="${VPP:-2510}"
-case "$SUITE" in full|bng|pair) PUBLISH="${PUBLISH:-1}" ;; *) PUBLISH="${PUBLISH:-0}" ;; esac
+case "$SUITE" in full|bng|pair|platform) PUBLISH="${PUBLISH:-1}" ;; *) PUBLISH="${PUBLISH:-0}" ;; esac
 export RESULTS_FILE="$ROOT/results/run.jsonl"
 SSH="ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=15"
 GEN_SSH="$LAB_SSH_USER@$SENDER_HOST"
@@ -94,6 +94,14 @@ rm -f "$RESULTS_FILE"; mkdir -p "$(dirname "$RESULTS_FILE")"
 GUARD=$!
 if [ "$SUITE" = pair ]; then
   say "suite pair"; "$HW/pair-ceiling.sh"
+elif [ "$SUITE" = platform ]; then
+  if fetch_bundle; then
+    say "sync"; "$HW/sync-hosts.sh" &&
+      say "DUT image" && $SSH "$LAB_SSH_USER@$DUT_HOST" "sg docker -c 'bash ~/${HOST_REPO}/labs/hw/dut-image.sh'" &&
+      say "suite platform" && "$HW/platform-ceiling.sh" || fail_row "platform"
+  else
+    fail_row "release bundle"
+  fi
 elif fetch_bundle; then
   if [ "${DUT_KIND:-host}" = dpu ]; then say "suite $SUITE"; "$HW/suite.sh" "$SUITE"; else host_run; fi
 else
@@ -105,7 +113,7 @@ if [ -f "$(dirname "$RESULTS_FILE")/thermal-stop" ]; then
   PUBLISH=0
 fi
 report; rc=$?
-if [ "${DUT_KIND:-host}" != dpu ] && [ "$SUITE" != pair ] && [ "${TEARDOWN:-1}" = 1 ]; then
+if [ "${DUT_KIND:-host}" != dpu ] && [ "$SUITE" != pair ] && [ "$SUITE" != platform ] && [ "${TEARDOWN:-1}" = 1 ]; then
   say "teardown"; "$HW/teardown.sh"
 fi
 exit $rc

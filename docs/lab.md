@@ -9,9 +9,10 @@ addresses are **not** in this repository: they come from the `LAB_ENV` secret, r
 
 | Name | Role | CPU | NIC | Profile |
 |------|------|-----|-----|---------|
-| server1 | DUT, `2n-rome-cx7` | AMD EPYC 7742 (Rome), 64 cores / 128 threads | ConnectX-7, dual port, links at 200 Gbps | `labs/hw/profiles/server1.env` |
+| server1 | DUT, `2n-rome-cx7`; since 2026-10-09 the six-port TG for `2n-platform` | AMD EPYC 7742 (Rome), 64 cores / 128 threads | was: ConnectX-7, dual port, links at 200 Gbps. Now: 2× ConnectX-7 (`81:00`, `c2:00`, 200G) and 3× ConnectX-5 Ex (`01:00`, `82:00`, `c1:00`, 100G) | `labs/hw/profiles/server1.env`, `GEN=server1` |
 | epyc-sp5 | DUT, `2n-genoa-bf3` | AMD EPYC 9534 (Genoa), 64 cores, PCIe Gen5 | BlueField-3 B3240 (integrated ConnectX-7), host NIC mode | `labs/hw/profiles/epyc-sp5.env` |
 | epyc-sp5 | DUT, `2n-genoa-cx8` (since 2026-10-07; BlueField-3 removed) | AMD EPYC 9534 (Genoa), 64 cores, 12× DDR5-4800 | alice's ConnectX-8 in CPU SLOT5, links at 400 Gbps; PCIe Gen5 x16 | `labs/hw/profiles/epyc-cx8.env`, TG bob |
+| epyc-sp5 | DUT, `2n-platform` (since 2026-10-09) | AMD EPYC 9534 (Genoa), 64 cores, 12× DDR5-4800 | alice's ConnectX-8 (`41:00`, CPU SLOT5), bob's ConnectX-8 (`0a:00`) and the BlueField-3 back in NIC mode (`03:00`); six ports, all ingress | `labs/hw/profiles/epyc-platform.env`, TG server1 |
 | bluefield3 | DUT, `2n-bf3-arm` | BlueField-3 Arm, 16× Cortex-A78 | the same BlueField-3 in DPU mode | `labs/hw/dpu/` |
 | alice | DUT (profile `alice`) and TG for bob; no NIC since 2026-10-07 (card moved to epyc-sp5) | AMD Ryzen 9 9950X, 16 cores / 32 threads | ConnectX-8, dual port, links at 400 Gbps; PCIe Gen5 x16 (half of the card's Gen6 x16) | `labs/hw/profiles/alice.env`, `GEN=alice` |
 | bob | DUT (profile `bob`) and TG for alice | AMD Ryzen 9 9950X, 16 cores / 32 threads | ConnectX-8, dual port, links at 400 Gbps; PCIe Gen5 x16 | `labs/hw/profiles/bob.env`, `GEN=bob` |
@@ -110,6 +111,26 @@ bob   port 1  ──400G──►  epyc-sp5 CX-8 port 1  (ingress)
 bob   port 0  ◄─400G───  epyc-sp5 CX-8 port 0  (egress)
 ```
 
+Since 2026-10-09 (`2n-platform`, every epyc-sp5 port is an ingress; TRex port number first):
+
+```
+server1 0  CX-7 #1   81:00.1  ──200G──►  epyc-sp5 CX-8 A port 1  41:00.1
+server1 1  CX-7 #2   c2:00.0  ──200G──►  epyc-sp5 CX-8 B port 1  0a:00.1
+server1 2  CX-5 #1   01:00.1  ──100G──►  epyc-sp5 CX-8 B port 0  0a:00.0
+server1 3  CX-5 #1   01:00.0  ──100G──►  epyc-sp5 CX-8 A port 0  41:00.0   (autonegotiation off on both ends)
+server1 4  CX-5 #2   82:00.0  ──100G──►  epyc-sp5 BF-3 port 0    03:00.0
+server1 5  CX-5 #3   c1:00.0  ──100G──►  epyc-sp5 BF-3 port 1    03:00.1
+```
+
+The ConnectX-7 to ConnectX-8 links run at 200G on 400G DACs. The `01:00.0`–`41:00.0` DAC links
+only at a forced 100G with autonegotiation off on both ends; `GEN_FORCE_100G` and
+`SINK_FORCE_100G` in `vars.sh` make `perf-tune.sh` do that. Run it with
+`labs/hw/run.sh epyc-platform platform` (`labs/hw/platform-ceiling.sh`): stages add generator cards
+one group at a time, small frames only. TRex takes at most 48 data-plane cores, 16 per port pair.
+
+On 2026-10-09 alice, bob, flame1 and lava1 were offline: bob's ConnectX-8 is in epyc-sp5, so only
+`epyc-platform` runs.
+
 alice and bob are cabled port to port, so either is the DUT and the other its generator: profile
 `alice` puts the DUT on alice, profile `bob` on bob. TRex releases up to v3.06 do not know the
 ConnectX-8, so their generator image is built once from TRex source (`docker/Dockerfile.trex-src`,
@@ -133,6 +154,7 @@ scripts call it so each run finds the card in the mode it needs.
 | Change | Since | Where | Effect |
 |---|---|---|---|
 | BlueField-3 removed, alice's ConnectX-8 fitted in CPU SLOT5 (`41:00.0/.1`), cabled port to port with bob | 2026-10-07 | by hand | new rig `epyc-cx8`; card links at PCIe Gen5 x16 (the card is Gen6) |
+| bob's ConnectX-8 added (`0a:00.0/.1`), BlueField-3 refitted (`03:00`), all cabled to server1 | 2026-10-09 | by hand | new rig `epyc-platform` |
 | `isolcpus`, `nohz_full`, `rcu_nocbs` widened from `1-32` to `1-63` | 2026-10-07 | `/etc/default/grub` by hand (backup `grub.bak-20261007`) | lets VPP run up to 62 workers; VPP refuses 63 (`VPP_MAX_WORKERS` 64 counts the main thread) |
 
 **Run VPP with 32 workers on this rig** (the `epyc-cx8` default). Every worker owns one receive

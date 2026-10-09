@@ -11,6 +11,7 @@ services:
       - DUT_NUM_QUEUES=${DUT_NUM_QUEUES:-}
       - DUT_RX_DESC=${DUT_RX_DESC:-}
       - DUT_TX_DESC=${DUT_TX_DESC:-}
+      - SINK_PORTS=${SINK_PORTS:-}
     volumes:
       - ../..:/src
       - /dev/hugepages:/dev/hugepages

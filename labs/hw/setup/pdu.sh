@@ -38,7 +38,8 @@ try: d=json.load(sys.stdin)
 except Exception as e: print("  (parse error:",e,")"); sys.exit()
 for s in d.get("data",[]):
     alias,state=s["value"][0] or "-", ("ON " if str(s["value"][1])=="1" else "off")
-    print(f"  outlet {s[\"id\"]:>2}  [{state}]  {alias}")'
+    oid=s["id"]
+    print(f"  outlet {oid:>2}  [{state}]  {alias}")'
 }
 
 control() {

@@ -48,7 +48,7 @@ def main(argv):
         size, mult, macs, secs = int(argv[3]), argv[4], argv[5].split(","), float(argv[6])
         c.acquire(ports=all_ports, force=True)
         c.stop(ports=all_ports)
-        c.reset(ports=all_ports)
+        c.remove_all_streams(ports=all_ports)
         for p, mac in zip(ports, macs):
             c.add_streams([stream(size, mac) for _ in range(STREAMS)], ports=[p])
         c.start(ports=ports, mult=mult, force=True)

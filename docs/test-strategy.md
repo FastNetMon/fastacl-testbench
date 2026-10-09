@@ -81,10 +81,13 @@ test (DUT), connected back to back by 100 GbE DACs, with no switch in between.
 | `2n-bf3-arm` | lava1 | BlueField-3 Arm, 16× Cortex-A78 | BlueField-3 in DPU mode (Arm owns the ports) | L7, L8 |
 | `2n-zen5-cx8` | bob or alice | alice or bob, AMD Ryzen 9 9950X | ConnectX-8, dual port, 400G | L6, L9 |
 | `2n-genoa-cx8` | bob | epyc-sp5, AMD EPYC 9534 (Genoa), 12× DDR5-4800 | ConnectX-8, dual port, 400G | L6 |
+| `2n-platform` | server1 (2× ConnectX-7, 3× ConnectX-5 Ex, six ports) | epyc-sp5, AMD EPYC 9534 (Genoa), 12× DDR5-4800 | 2× ConnectX-8 and the BlueField-3 in NIC mode, six ports, all ingress | platform ceiling |
 
 Since 2026-10-07 epyc-sp5 carries alice's ConnectX-8 and the BlueField-3 is out of the box, so
 `2n-genoa-bf3`, `2n-bf3-arm` and `2n-zen5-cx8` cannot run until the cards go back (see `docs/lab.md`).
 `2n-genoa-cx8` runs 32 VPP workers: more receive queues make the ConnectX-8 drop at the port.
+`2n-platform` (since 2026-10-09) measures how many small packets the whole host takes in: one
+generator card group per stage, 62 VPP workers, one receive queue each, every packet dropped.
 
 The DUT runs **bridged**: an L2 cross-connect with FastACL on the `l2-input` arcs. Lab machines, cabling
 and access are described in `docs/lab.md`.

@@ -25,11 +25,11 @@ docs/            strategy, lab, NIC limits
 - **FastACL CI** (in the FastACL repository) runs the functional suite, sanitizers and
   performance sanity on every push, against builds made with throwaway licence keys.
 - **Hardware runs** are GitHub Actions workflows in this repository: `hw-line-rate`, started
-  manually (gate or full suite, on server1, epyc-sp5, epyc-cx8, the bluefield3 DPU, alice and bob); the BNG
+  manually (gate or full suite, on server1, epyc-sp5, epyc-cx8, epyc-platform, the bluefield3 DPU, alice and bob); the BNG
   and generator-pair suites run from `run.sh`. They install the
   licensed FastACL release bundle on the DUT, the same one customers receive. Nothing here
   builds or unlocks FastACL.
-- **One command per rig**: `labs/hw/run.sh <server1|epyc-sp5|epyc-cx8|bluefield3|alice|bob> <gate|full|bng|pair>` downloads
+- **One command per rig**: `labs/hw/run.sh <server1|epyc-sp5|epyc-cx8|epyc-platform|bluefield3|alice|bob> <gate|full|bng|pair|platform>` downloads
   the release bundle, syncs the lab hosts, switches the BlueField-3 between NIC and DPU mode when
   needed, brings up the DUT and generator, runs the suite, writes the report (published to
   `reports/` for the full, bng and pair suites; never for the gate), and tears down. The workflow calls exactly this; it runs the same from any machine

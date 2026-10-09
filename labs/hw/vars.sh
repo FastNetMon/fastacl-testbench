@@ -42,6 +42,22 @@ case "$DUT" in
     DUT_RIGHT_MAC_DEFAULT="${LAB_MAC_RIGHT_epyc_cx8:-}"
     DUT_IPMI_HOST="${LAB_IPMI_HOST_epyc:-}"; DUT_IPMI_USER="${LAB_IPMI_USER_epyc:-}"; DUT_IPMI_PASS="${LAB_IPMI_PASS_epyc:-}"
     ;;
+  epyc-platform)
+    # epyc-sp5 as a pure sink for the platform ceiling (platform-ceiling.sh):
+    # two ConnectX-8 (41:00 in CPU SLOT5, 0a:00) and the BlueField-3 in NIC mode
+    # (03:00), every port ingress, fed by server1.  DUT_PCI_0/1 keep the
+    # single-card helpers working; the sink ports are SINK_PORTS.
+    DUT_HOST="${LAB_HOST_epyc:-}"
+    DUT_PCI_0="0000:41:00.0"; DUT_IFACE_0="enp65s0f0np0"
+    DUT_PCI_1="0000:41:00.1"; DUT_IFACE_1="enp65s0f1np1"
+    DUT_INGRESS_DEFAULT="0000:41:00.1"
+    DUT_LEFT_MAC_DEFAULT=""; DUT_RIGHT_MAC_DEFAULT=""
+    DUT_IPMI_HOST="${LAB_IPMI_HOST_epyc:-}"; DUT_IPMI_USER="${LAB_IPMI_USER_epyc:-}"; DUT_IPMI_PASS="${LAB_IPMI_PASS_epyc:-}"
+    # pci:name:rx-queues:kernel-iface, in TRex port order (gen port i feeds sink port i).
+    SINK_PORTS="${SINK_PORTS:-0000:41:00.1:cx8a-p1:16:enp65s0f1np1 0000:0a:00.1:cx8b-p1:16:enp10s0f1np1 0000:0a:00.0:cx8b-p0:8:enp10s0f0np0 0000:41:00.0:cx8a-p0:8:enp65s0f0np0 0000:03:00.0:bf3-p0:7:enp3s0f0np0 0000:03:00.1:bf3-p1:7:enp3s0f1np1}"
+    # These ports carry a ConnectX-5 DAC that links only with autonegotiation off.
+    SINK_FORCE_100G="${SINK_FORCE_100G:-enp65s0f0np0}"
+    ;;
   alice|bob)
     DUT_HOST_VAR="LAB_HOST_$DUT"; DUT_HOST="${!DUT_HOST_VAR:-}"
     DUT_PCI_0="0000:01:00.0"; DUT_IFACE_0="enp1s0f0np0"
@@ -57,7 +73,7 @@ case "$DUT" in
     DUT_SKIP_OFED=1
     ;;
   *)
-    echo "vars.sh: unknown DUT='$DUT' (use 'server1', 'epyc', 'epyc-cx8', 'alice' or 'bob')" >&2
+    echo "vars.sh: unknown DUT='$DUT' (use 'server1', 'epyc', 'epyc-cx8', 'epyc-platform', 'alice' or 'bob')" >&2
     return 1 2>/dev/null || exit 1
     ;;
 esac
@@ -141,8 +157,32 @@ case "$GEN" in
     TREX_TARGET_GBPS=400
     TREX_TARGET_GBPS_MIXED=400
     ;;
+  server1)
+    # server1 (EPYC 7742) as a six-port generator for epyc-platform: two
+    # ConnectX-7 (200G) and three ConnectX-5 Ex (100G).  TREX_PCI_LIST order is
+    # the TRex port order; port i feeds SINK_PORTS entry i on the DUT.
+    SENDER_HOST="${LAB_HOST_server1:-}"
+    RECEIVER_HOST="${LAB_HOST_server1:-}"
+    SENDER_PCI="0000:81:00.1"
+    RECEIVER_PCI="0000:c2:00.0"
+    SENDER_MAC=""; RECEIVER_MAC=""
+    GEN_IFACE0="enp129s0f1np1"
+    GEN_IFACE1="enp194s0f0np0"
+    TREX_PCI_LIST="${TREX_PCI_LIST:-0000:81:00.1 0000:c2:00.0 0000:01:00.1 0000:01:00.0 0000:82:00.0 0000:c1:00.0}"
+    GEN_FORCE_100G="${GEN_FORCE_100G:-enp1s0f0np0}"
+    TREX_PORT_MTU=9000
+    TREX_MASTER_CORE=0
+    TREX_LATENCY_CORE=63
+    TREX_WORKER_CORES="1-48"
+    TREX_SOCKET=0
+    TREX_HUGEPAGES_2M=8192
+    GEN_HUGEPAGES_1G=0
+    GEN_SKIP_OFED=1
+    GEN_DOCKERFILE="docker/Dockerfile.trex-src"
+    GEN_IMAGE="ghcr.io/garyachy/fastacl-testbench-trex:27e0153b"
+    ;;
   *)
-    echo "vars.sh: unknown GEN='$GEN' (use 'lava', 'flame', 'dell', 'alice' or 'bob')" >&2
+    echo "vars.sh: unknown GEN='$GEN' (use 'lava', 'flame', 'dell', 'alice', 'bob' or 'server1')" >&2
     return 1 2>/dev/null || exit 1
     ;;
 esac

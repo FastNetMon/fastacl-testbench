@@ -148,6 +148,79 @@ def enrich(row):
     return row
 
 
+PLATFORM_STAGES = {
+    "cx7-1": "ConnectX-7 #1 alone",
+    "cx7-2": "ConnectX-7 #2 alone",
+    "cx5-1": "ConnectX-5 #1 alone (both ports)",
+    "cx5-23": "ConnectX-5 #2 and #3 alone",
+    "cx7x2": "both ConnectX-7",
+    "cx7x2+cx5-1": "both ConnectX-7 + ConnectX-5 #1",
+    "all": "all six ports",
+}
+
+
+def platform_rig_table(rig, meta):
+    ports = ", ".join(f"{p['dut']} ({p['queues']} queues)" for p in rig.get("ports", []))
+    rows = [
+        ("Topology", f"{meta['gen']} (TRex, six ports) cabled port to port to {meta['dut']}, no switch; "
+                     "every DUT port is an ingress and drops everything"),
+        ("DUT CPU", f"{rig.get('dut_cpu', '?')} ({fmt(rig.get('dut_cores'))} CPUs), memory {rig.get('dut_memory', '?')}"),
+        ("DUT kernel", rig.get("dut_kernel", "?")),
+        ("DUT ports", ports),
+        ("VPP", f"{fmt(rig.get('vpp_workers'))} worker threads, one receive queue each"),
+        ("Generator", f"{rig.get('gen_cpu', '?')} ({fmt(rig.get('gen_cores'))} CPUs), TRex {rig.get('trex_image', '')}"),
+        ("FastACL", f"release {meta['release']}, 5 drop rules (`5rules-drop`)"),
+        ("Testbench", meta["testbench"]),
+        ("Run", meta["run_url"] or "local"),
+    ]
+    return ["| | |", "|---|---|"] + [f"| {k} | {v} |" for k, v in rows if v]
+
+
+def platform_method():
+    return [
+        "## Method",
+        "",
+        "- The generator sends 64 B UDP frames (64 B including the FCS, 84 B on the wire) at the "
+        "line rate of every port in the stage; each stage adds generator cards. The destination port "
+        "matches the drop rules, so FastACL drops every packet VPP receives.",
+        "- The source address increments over 65,536 values so RSS spreads the load over the queues.",
+        "- **sent** is the generator's `tx_packets_phy`; **NIC received** is the DUT's `rx_packets_phy`; "
+        "**NIC dropped** is `rx_discards_phy + rx_out_of_buffer`; **VPP received** is the interface "
+        "receive counter; **VPP dropped** is FastACL's aggregate drop counter. Packets the NIC "
+        "received but VPP did not take (ring full, `rx_prio0_buf_discard`) are the gap between "
+        "NIC received and VPP received.",
+        "- Each stage runs several trials; the summary shows the trial with the median VPP drop rate.",
+        "",
+    ]
+
+
+def platform_tables(data):
+    rows = [r for r in data if r.get("bench") == "platform"]
+    if not rows:
+        return []
+    order = list(dict.fromkeys(r["scenario"] for r in rows))
+    med = {}
+    for st in order:
+        tr = sorted((r for r in rows if r["scenario"] == st), key=lambda r: r.get("vpp_drop_mpps") or 0)
+        med[st] = tr[len(tr) // 2]
+    out = ["## Summary (Mpps, median trial)", ""]
+    out += table(["stage", "generator", "trials", "sent", "NIC received", "NIC dropped", "VPP received", "VPP dropped"],
+                 [[st, PLATFORM_STAGES.get(st, ""), sum(1 for r in rows if r["scenario"] == st),
+                   med[st].get("tx_mpps"), med[st].get("nic_rx_mpps"), med[st].get("nic_lost_mpps"),
+                   med[st].get("vpp_rx_mpps"), med[st].get("vpp_drop_mpps")] for st in order])
+    out += ["## Per port (Mpps, median trial)", ""]
+    body = []
+    for st in order:
+        for p in med[st].get("per_port", []):
+            body.append([st, p["port"], p["tx_mpps"], p["nic_rx_mpps"], p["nic_lost_mpps"], p["vpp_rx_mpps"]])
+    out += table(["stage", "DUT port", "sent", "NIC received", "NIC dropped", "VPP received"], body)
+    out += ["## All trials (Mpps)", ""]
+    out += table(["stage", "trial", "sent", "NIC received", "NIC dropped", "VPP received", "VPP dropped"],
+                 [[r["scenario"], r.get("trial"), r.get("tx_mpps"), r.get("nic_rx_mpps"), r.get("nic_lost_mpps"),
+                   r.get("vpp_rx_mpps"), r.get("vpp_drop_mpps")] for r in rows])
+    return out
+
+
 def pair_rig_table(rig, meta):
     rows = [
         ("Topology", f"2-node: {meta['gen']} and {meta['dut']} cabled port to port, no switch; each runs TRex"),
@@ -181,6 +254,8 @@ def pair_method():
 def rig_table(rig, meta):
     if rig.get("kind") == "pair":
         return pair_rig_table(rig, meta)
+    if rig.get("kind") == "platform":
+        return platform_rig_table(rig, meta)
     rows = [
         ("Topology", f"2-node: {meta['gen']} (TRex) cabled back to back to {meta['dut']}, no switch"),
         ("DUT CPU", f"{rig.get('dut_cpu', '?')} ({fmt(rig.get('dut_cores'))} CPUs)"),
@@ -370,6 +445,17 @@ def write_md(rows, meta, path):
              f"**{verdict}**: {len(passes)} checks passed, {len(fails)} failed, "
              f"{measured} recorded measurements. {when:%Y-%m-%d %H:%M} UTC.", ""]
     lines += rig_table(rig, meta) + [""]
+    if rig.get("kind") == "platform":
+        lines += platform_method() + platform_tables(data)
+        if not data:
+            lines += ["No results were recorded: the bench did not reach a measurement.", ""]
+        text = "\n".join(lines)
+        leak = FORBIDDEN.search(text)
+        if leak:
+            raise SystemExit(f"report.py: refusing to write a report containing lab data ({leak.group(0)!r})")
+        with open(path, "w") as f:
+            f.write(text)
+        return fails, data
     lines += summary([r for r in rows if r.get("bench") != "rig"], rig)
     benches = {r.get("bench") for r in data}
     lines += pair_method() if benches <= {"pair", "rig"} else method(rig, benches)
