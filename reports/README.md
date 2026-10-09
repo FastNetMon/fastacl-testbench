@@ -14,7 +14,7 @@ reference rigs. Methodology, topology and thresholds: [test strategy](../docs/te
 | `epyc-sp5` | AMD EPYC 9534 (64 cores), BlueField-3 in NIC mode, VPP on x86 | Ryzen 9 9950X + 2× ConnectX-5 Ex, TRex |
 | `bluefield3` | BlueField-3 Arm (16× Cortex-A78AE) in DPU mode, VPP on the Arm cores | Ryzen 9 9950X + 2× ConnectX-5 Ex, TRex |
 | `epyc-cx8` | AMD EPYC 9534 (64 cores), ConnectX-8 at 400G, VPP on x86 (32 workers unless the report says otherwise) | bob: Ryzen 9 9950X + ConnectX-8, TRex built from source |
-| `epyc-platform` | AMD EPYC 9534 (64 cores), 2× ConnectX-8 + BlueField-3 (NIC mode), six ingress ports, VPP on x86 (62 workers) | server1: EPYC 7742 + 2× ConnectX-7 + 3× ConnectX-5 Ex, TRex built from source |
+| `epyc-platform` | AMD EPYC 9534 (64 cores), 2× ConnectX-8 + BlueField-3 (NIC mode), six ingress ports, VPP on x86 (62 workers; NPS4 since 2026-10-09, see the report header) | server1: EPYC 7742 + 2× ConnectX-7 + 3× ConnectX-5 Ex, TRex built from source |
 | `alice` | Ryzen 9 9950X (16 cores), ConnectX-8 at 400G, VPP on x86 (15 workers) | bob: Ryzen 9 9950X + ConnectX-8, TRex built from source |
 | `bob` | Ryzen 9 9950X (16 cores), ConnectX-8 at 400G, VPP on x86 (15 workers) | alice: Ryzen 9 9950X + ConnectX-8, TRex built from source |
 
@@ -96,6 +96,7 @@ This is the source the other two files are generated from (`labs/hw/report.py`).
 
 | Report | Rig | Suite | FastACL | VPP | DUT software | Result |
 |---|---|---|---|---|---|---|
+| [2026-10-09_1331_epyc-platform_platform](2026-10-09_1331_epyc-platform_platform/) | epyc-platform | platform |  |  | kernel 6.8.0-142-generic | CALIBRATION RUN (no verdict): 0 checks passed, 0 failed, 23 recorded measurements. 2026-10-09 13:13 UTC. |
 | [2026-10-09_1110_epyc-platform_platform](2026-10-09_1110_epyc-platform_platform/) | epyc-platform | platform |  |  | kernel 6.8.0-142-generic | CALIBRATION RUN (no verdict): 0 checks passed, 0 failed, 23 recorded measurements. 2026-10-09 10:52 UTC. |
 | [2026-10-09_1017_epyc-platform_platform](2026-10-09_1017_epyc-platform_platform/) | epyc-platform | platform |  |  | kernel 6.8.0-142-generic | CALIBRATION RUN (no verdict): 0 checks passed, 0 failed, 23 recorded measurements. 2026-10-09 10:00 UTC. |
 | [2026-10-07_1544_epyc-cx8_full](2026-10-07_1544_epyc-cx8_full/) | epyc-cx8 | full | 0.6.1 | v25.10-release · dpdk | Ubuntu 24.04.4 LTS, NIC firmware 40.50.1002 | CALIBRATION RUN (no verdict): 5 checks passed, 6 failed, 101 recorded measurements. 2026-10-07 13:32 UTC. |
