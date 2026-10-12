@@ -85,6 +85,7 @@ if [ "${DUT_DRIVER:-dpdk}" = rdma ]; then
        {print}' "$CONF" > "$CONF.rdma" && mv "$CONF.rdma" "$CONF"
 fi
 
+k=0
 w=0
 {
   if [ "${DUT_DRIVER:-dpdk}" = rdma ]; then
@@ -100,6 +101,7 @@ w=0
     IFS=: read -r _ _ _ name _ _ <<<"$e"
     echo "set interface state $name up"
     if [ "${SINK_ACL:-1}" = 1 ]; then echo "set interface fastacl $name"; fi
+    if [ "${SINK_ACL:-1}" = acl ]; then k=$((k + 1)); echo "set interface ip address $name 100.64.$k.1/24"; fi
   done
   # Workers take the queues port by port, in SINK_ORDER (names) or SINK_PORTS order.
   for name in ${SINK_ORDER:-$(for e in $SINK_PORTS; do cut -d: -f4 <<<"$e"; done)}; do
@@ -110,7 +112,9 @@ w=0
     done
   done
 } > "$SETUP"
+[ "${SINK_EDITION:-commercial}" != community ] || sed -i '/license-file/d' "$CONF"
 [ "${SINK_ACL:-1}" = 1 ] || sed -i 's/plugin fastacl_plugin.so { enable }/plugin fastacl_plugin.so { disable }/; /^fastacl {/,/^}/d' "$CONF"
+[ "${SINK_ACL:-1}" != acl ] && [ "${SINK_ACL_HEAP:-0}" != 1 ] || printf 'acl-plugin {\n  hash lookup heap size 8G\n  hash lookup hash buckets 1000000\n  hash lookup hash memory 4G\n}\n' >> "$CONF"
 [ -z "${SINK_BUFFERS_EXTRA:-}" ] || sed -i "s|^buffers { buffers-per-numa \([0-9]*\) }|buffers { buffers-per-numa \1 $SINK_BUFFERS_EXTRA }|" "$CONF"
 
 LIC=/tmp/fastacl-lab-license.json

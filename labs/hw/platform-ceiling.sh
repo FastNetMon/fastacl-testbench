@@ -22,7 +22,7 @@ gen_c() { $SSH "$GEN_SSH" "docker exec \$(docker ps -q --filter name=hw-gen | he
 
 dut_up() {
   $SSH "$DUT_SSH" "sg docker -c 'docker ps -aq --filter name=hw-dut | xargs -r docker rm -f' >/dev/null 2>&1
-    cd $REPO && DUT=$DUT DUT_RX_DESC=${DUT_RX_DESC:-} DUT_DRIVER=${DUT_DRIVER:-dpdk} SINK_CORELIST=${SINK_CORELIST:-} SINK_ORDER='${SINK_ORDER:-}' SINK_ACL=${SINK_ACL:-1} SINK_BUFFERS_EXTRA='${SINK_BUFFERS_EXTRA:-}' DUT_IMAGE=${DUT_IMAGE:-fastacl-dut:current} DUT_BUFFERS_PER_NUMA=${DUT_BUFFERS_PER_NUMA:-} DUT_DEVARGS='${DUT_DEVARGS:-}' SINK_PORTS='$SINK_PORTS' sg docker -c 'docker compose -f labs/hw/compose.yaml run -d --name hw-dut-sink dut /src/labs/hw/dut/start-sink.sh'" >/dev/null || return 1
+    cd $REPO && DUT=$DUT DUT_RX_DESC=${DUT_RX_DESC:-} DUT_DRIVER=${DUT_DRIVER:-dpdk} SINK_CORELIST=${SINK_CORELIST:-} SINK_ORDER='${SINK_ORDER:-}' SINK_ACL=${SINK_ACL:-1} SINK_ACL_HEAP=${SINK_ACL_HEAP:-0} SINK_EDITION=${SINK_EDITION:-commercial} SINK_BUFFERS_EXTRA='${SINK_BUFFERS_EXTRA:-}' DUT_IMAGE=${DUT_IMAGE:-fastacl-dut:current} DUT_BUFFERS_PER_NUMA=${DUT_BUFFERS_PER_NUMA:-} DUT_DEVARGS='${DUT_DEVARGS:-}' SINK_PORTS='$SINK_PORTS' sg docker -c 'docker compose -f labs/hw/compose.yaml run -d --name hw-dut-sink dut /src/labs/hw/dut/start-sink.sh'" >/dev/null || return 1
   local i
   for i in $(seq 1 60); do
     sleep 10
@@ -31,6 +31,10 @@ dut_up() {
       { $SSH "$DUT_SSH" "sg docker -c 'docker logs hw-dut-sink 2>&1' | tail -20"; return 1; }
     [ "$i" = 60 ] && { echo "ERROR: sink VPP not ready" >&2; return 1; }
   done
+  if [ -n "${SINK_RULES:-}" ]; then
+    dut_c "sh -c 'cd /src/labs/hw/dut && python3 load-rules.py --engine ${SINK_ENGINE:-$([ "${SINK_ACL:-1}" = acl ] && echo acl || echo fastacl)} --n $SINK_RULES ${SINK_RULES_EXTRA:-}'" | tail -1
+    return 0
+  fi
   [ "${SINK_ACL:-1}" = 1 ] || { echo "no ACL plugin: VPP drops every packet itself (no L3 on the ports)"; return 0; }
   dut_c "sh -c 'cd /src/labs/hw/dut && python3 load-scenario.py --scenario 5rules-drop'" | tail -1
 }
@@ -99,7 +103,7 @@ measure() {
     e="${SINK[$p]}"
     macs="$macs,$($SSH "$DUT_SSH" "cat /sys/class/net/$(cut -d: -f6 <<<"$e")/address")"
   done
-  gen_c "sh -c 'cd /src/labs/hw/gen/conf && PAIR_DPORT=8000 python3 -W ignore pair_ceiling.py run $ports $SIZE $MULT ${macs#,} $((SECS + 14))'" >/dev/null 2>&1 &
+  gen_c "sh -c 'cd /src/labs/hw/gen/conf && PAIR_DPORT=8000 PAIR_FRAG=${PAIR_FRAG:-0} python3 -W ignore pair_ceiling.py run $ports $SIZE $MULT ${macs#,} $((SECS + 14))'" >/dev/null 2>&1 &
   sleep 10
   dut_c "vppctl clear interfaces" >/dev/null
   g1=$(gen_snap); d1=$(dut_snap); v1=$(vpp_snap)
