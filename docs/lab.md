@@ -190,6 +190,10 @@ runs it by itself when the host's node count differs from `SINK_NUMA_NODES` (the
 `run.sh` needs Python Playwright with Chromium for that), the sink warns about a mismatch, and every
 platform report shows the node count.
 
+**Since 2026-10-13 alice and bob are lent out for other testing.** `run.sh` refuses every profile
+whose DUT or generator is one of them (`alice`, `bob`, `epyc-cx8`); the profiles and docs stay as they are. When the hosts come back,
+clear `RESERVED_HOSTS` in `labs/hw/run.sh` (or run with `RESERVED_HOSTS=` to override once).
+
 On 2026-10-09 alice, bob, flame1 and lava1 were offline: bob's ConnectX-8 is in epyc-sp5, so only
 `epyc-platform` runs.
 

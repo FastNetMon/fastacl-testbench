@@ -16,6 +16,15 @@ set -a
 set +a
 [ "${CALIBRATE_INPUT:-false}" = true ] && export CALIBRATE=1
 . "$HW/vars.sh" >/dev/null 2>&1
+# Hosts lent out for other testing (since 2026-10-13: alice, bob); a profile
+# whose DUT or generator is one of them refuses to start.  RESERVED_HOSTS=
+# clears the list once they are back.
+for h in ${RESERVED_HOSTS-alice bob}; do
+  if [ "$DUT" = "$h" ] || [ "$GEN" = "$h" ]; then
+    echo "run.sh: profile '$PROFILE' uses $h (DUT=$DUT GEN=$GEN), which is reserved for other testing; see docs/lab.md" >&2
+    exit 2
+  fi
+done
 export DUT_SEL="$DUT"
 export RELEASE_TAG="${RELEASE_TAG:-latest-main}"
 [ -n "${BUNDLE_FILE:-}" ] && RELEASE_TAG="local:${BUNDLE_FILE##*/}"
