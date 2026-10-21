@@ -192,30 +192,48 @@ def platform_method():
         "received but VPP did not take (ring full, `rx_prio0_buf_discard`) are the gap between "
         "NIC received and VPP received.",
         "- Each stage runs several trials; the summary shows the trial with the median VPP drop rate.",
+        "- Rates are in Mpps; **Gbps** columns are the rate on the wire, (frame + 20 B) x 8 bits per packet, "
+        "so at 64 B 1 Mpps is 0.672 Gbps and 148.8 Mpps fill 100 Gbps. **VPP workers** counts the "
+        "receive queues of the stage's ports: each queue is one worker on its own physical core.",
         "",
     ]
 
 
-def platform_tables(data):
+def platform_gbps(mpps, frame):
+    """Rate on the wire: the frame (FCS included) plus 20 B of preamble and inter-frame gap."""
+    size = str(frame).split()[0]
+    if mpps is None or not size.isdigit():
+        return None
+    return round(mpps * (int(size) + 20) * 8 / 1000, 1)
+
+
+def platform_tables(data, rig):
     rows = [r for r in data if r.get("bench") == "platform"]
     if not rows:
         return []
+    queues = {p["dut"]: p["queues"] for p in rig.get("ports", [])}
+    workers = lambda r: sum(queues.get(p["port"], 0) for p in r.get("per_port", [])) or None
+    gbps = lambda r, k: platform_gbps(r.get(k), r.get("frame", 64))
     order = list(dict.fromkeys(r["scenario"] for r in rows))
     med = {}
     for st in order:
         tr = sorted((r for r in rows if r["scenario"] == st), key=lambda r: r.get("vpp_drop_mpps") or 0)
         med[st] = tr[len(tr) // 2]
-    out = ["## Summary (Mpps, median trial)", ""]
-    out += table(["stage", "generator", "trials", "sent", "NIC received", "NIC dropped", "VPP received", "VPP dropped"],
-                 [[st, PLATFORM_STAGES.get(st, ""), sum(1 for r in rows if r["scenario"] == st),
+    out = ["## Summary (median trial)", ""]
+    out += table(["stage", "generator", "trials", "VPP workers", "sent", "NIC received", "NIC dropped", "VPP received",
+                  "VPP dropped", "sent Gbps", "VPP dropped Gbps"],
+                 [[st, PLATFORM_STAGES.get(st, ""), sum(1 for r in rows if r["scenario"] == st), workers(med[st]),
                    med[st].get("tx_mpps"), med[st].get("nic_rx_mpps"), med[st].get("nic_lost_mpps"),
-                   med[st].get("vpp_rx_mpps"), med[st].get("vpp_drop_mpps")] for st in order])
-    out += ["## Per port (Mpps, median trial)", ""]
+                   med[st].get("vpp_rx_mpps"), med[st].get("vpp_drop_mpps"),
+                   gbps(med[st], "tx_mpps"), gbps(med[st], "vpp_drop_mpps")] for st in order])
+    out += ["## Per port (median trial)", ""]
     body = []
     for st in order:
         for p in med[st].get("per_port", []):
-            body.append([st, p["port"], p["tx_mpps"], p["nic_rx_mpps"], p["nic_lost_mpps"], p["vpp_rx_mpps"]])
-    out += table(["stage", "DUT port", "sent", "NIC received", "NIC dropped", "VPP received"], body)
+            body.append([st, p["port"], queues.get(p["port"]), p["tx_mpps"], p["nic_rx_mpps"], p["nic_lost_mpps"],
+                         p["vpp_rx_mpps"], platform_gbps(p["vpp_rx_mpps"], med[st].get("frame", 64))])
+    out += table(["stage", "DUT port", "VPP workers", "sent", "NIC received", "NIC dropped", "VPP received",
+                  "VPP received Gbps"], body)
     out += ["## All trials (Mpps)", ""]
     out += table(["stage", "trial", "sent", "NIC received", "NIC dropped", "VPP received", "VPP dropped"],
                  [[r["scenario"], r.get("trial"), r.get("tx_mpps"), r.get("nic_rx_mpps"), r.get("nic_lost_mpps"),
@@ -448,7 +466,7 @@ def write_md(rows, meta, path):
              f"{measured} recorded measurements. {when:%Y-%m-%d %H:%M} UTC.", ""]
     lines += rig_table(rig, meta) + [""]
     if rig.get("kind") == "platform":
-        lines += platform_method() + platform_tables(data)
+        lines += platform_method() + platform_tables(data, rig)
         if not data:
             lines += ["No results were recorded: the bench did not reach a measurement.", ""]
         text = "\n".join(lines)
