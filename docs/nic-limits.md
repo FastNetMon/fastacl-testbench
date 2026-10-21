@@ -23,17 +23,23 @@ received, with nothing reaching VPP.
 
 All rates are in Mpps.
 
-## Whole host (epyc-sp5, 2026-10-09)
+## Whole host (epyc-sp5)
 
 Two ConnectX-8 and the BlueField-3 in one EPYC 9534, fed by six server1 ports (`2n-platform`):
 
-| What | Mpps |
-|---|---|
-| server1 sends, six ports | 893 |
-| epyc-sp5 NICs receive | ~875 |
-| VPP drops, all six ports, NPS4, 62 workers | **450** (median of 3, 439–464; report 2026-10-09_1331) |
-| VPP drops, all six ports, NPS1, 32 workers | 355 |
-| VPP drops, all six ports, NPS1, 62 workers | 148 |
+| What | Mpps | Gbps (wire) | Cores |
+|---|---|---|---|
+| server1 sends, six ports | 893 | 629 | 48 (TRex data-plane cores) |
+| epyc-sp5 NICs receive | ~875 | ~616 | — (in the NICs) |
+| VPP drops, all six ports, NPS4, 62 workers | **450** (median of 3, 439–464; report 2026-10-09_1331) | 317 | 62 workers |
+| VPP drops, all six ports, NPS1, 32 workers | 355 | 250 | 32 workers |
+| VPP drops, all six ports, NPS1, 62 workers | 148 | 104 | 62 workers |
+| FastACL with ~1M rules drops, all six ports, NPS4 (2026-10-20, TupleMerge) | **413** UDP flood; 402–428 across 7 attack types | 291 (283–301) | 62 workers |
+
+Gbps is the rate on the wire: a 64 B frame takes 88 B there (64 B + 4 B FCS + 20 B preamble and
+gap), so 1 Mpps = 0.704 Gbps and 142.05 Mpps fill 100 Gbps. The six ports are 2 × 200G + 4 × 100G,
+800 Gbps in all; 64 B line rate across them is ~1,136 Mpps. Each VPP worker is one physical core
+(cores 1–63 isolated, core 0 runs VPP's main thread); the 64 SMT siblings are not used.
 
 With the BIOS at one NUMA node per socket (NPS1), VPP's workers share one packet-buffer pool and
 spend most of their time on it (`dpdk_ops_vpp_dequeue` 55 %, `error_drop` 20 %, the filter 5 %), so
@@ -42,15 +48,17 @@ not the limit. Details and the other settings tried: `docs/lab.md`, "Tuning epyc
 
 ## ConnectX-8 at other frame sizes
 
-| Frame | TX, whole card (bob) | Comment |
-|---|---|---|
-| 64 B | ~300 Mpps | card's packet rate |
-| 128 B | ~200 Mpps | |
-| 256 B | ~120 Mpps | |
-| 512 B | ~80 Mpps | |
-| 1024 B, 1518 B | 400–411 Gbps | Gen5 x16 PCIe bandwidth; the second port adds almost nothing |
-| 4096 B / 9000 B | ~380 / ~350 Gbps | jumbo frames are slower |
-| IMIX (354 B average) | ~120–130 Mpps (~390 Gbps) | epyc-sp5 receives all of it |
+Wire rate for a frame of S bytes (before FCS) is Mpps × (S + 24) × 8 / 1000 Gbps.
+
+| Frame | TX, whole card (bob), Mpps | Gbps (wire) | Comment |
+|---|---|---|---|
+| 64 B | ~300 | ~211 | card's packet rate |
+| 128 B | ~200 | ~243 | |
+| 256 B | ~120 | ~269 | |
+| 512 B | ~80 | ~343 | |
+| 1024 B, 1518 B | ~48–49 / ~32–33 | 400–411 | Gen5 x16 PCIe bandwidth; the second port adds almost nothing |
+| 4096 B / 9000 B | ~11.5 / ~4.8 | ~380 / ~350 | jumbo frames are slower |
+| IMIX (354 B average) | ~120–130 | ~390 | epyc-sp5 receives all of it |
 
 ## Notes
 
