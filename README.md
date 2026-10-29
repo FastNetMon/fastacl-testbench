@@ -14,7 +14,8 @@ Hardware-lab tooling, HW line-rate CI and published performance results for
 
 | Rig | Result | Where |
 |---|---|---|
-| `epyc-platform`: EPYC 9534, 2× ConnectX-8 + BlueField-3, six ports | **450 Mpps** of 64 B dropped by VPP, 62 workers, BIOS at NPS4 (148 at the default NPS1) | `reports/2026-10-09_1331_epyc-platform_platform`, tuning in `docs/lab.md` |
+| `epyc-sd` (since 2026-10-28): EPYC 9534, one ConnectX-8 in socket direct, port 1 fed via a MikroTik | **226 Mpps** of 64 B dropped by VPP on one port (560 offered; the card takes in ~230), **400 Gbps** at 1500 B on one port with no loss | `reports/2026-10-29_*_epyc-sd*`, `docs/lab.md` |
+| `epyc-platform` (until 2026-10-28): EPYC 9534, 2× ConnectX-8 + BlueField-3, six ports | **450 Mpps** of 64 B dropped by VPP, 62 workers, BIOS at NPS4 (148 at the default NPS1) | `reports/2026-10-09_1331_epyc-platform_platform`, tuning in `docs/lab.md` |
 | server1 as generator: 2× ConnectX-7 + 3× ConnectX-5 Ex | **893 Mpps** of 64 B from one TRex host | same report; FastNetMon/trex-reports `server1.md` |
 | ConnectX-8, one card | at least 311 Mpps received with no loss at the NIC; ~300 Mpps sent | `docs/nic-limits.md` |
 

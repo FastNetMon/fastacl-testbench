@@ -46,6 +46,24 @@ spend most of their time on it (`dpdk_ops_vpp_dequeue` 55 %, `error_drop` 20 %, 
 62 workers drop less than 32. NPS4 gives four pools: 62 workers then drop 450 Mpps. The NICs are
 not the limit. Details and the other settings tried: `docs/lab.md`, "Tuning epyc-sp5".
 
+## One ConnectX-8, socket direct (epyc-sp5, `2n-genoa-cx8sd`, 2026-10-29)
+
+Both Gen5 x16 links active, port 1 fed with 560 Mpps of 64 B (64 B with FCS here) by two
+ConnectX-7 through a MikroTik switch:
+
+| What | Mpps | Gbps (wire) | Cores |
+|---|---|---|---|
+| server1 sends, two ConnectX-7 | 560 | 376 | 46 TRex cores |
+| ConnectX-8 port 1 takes in | ~230 (~330 discarded at the port) | ~154 | — |
+| VPP drops, port 1, 16 + 16 queues | **226** | 152 | 32 workers |
+| VPP drops, port 1, 31 + 31 queues | 168 | 113 | 62 workers |
+| ConnectX-8, both ports, 729 Mpps offered | ~229 taken in | | |
+| Port 1 at 1500 B | 32.9 = **400 Gbps**, no loss | 400 | 52 workers |
+
+The card takes in ~230 Mpps of small frames whether one port or both are loaded; the
+auxiliary x16 adds bandwidth (400 Gbps lossless on one port) but not packet rate. Details:
+`docs/lab.md`, "Socket-direct ConnectX-8".
+
 ## ConnectX-8 at other frame sizes
 
 Frame sizes include the FCS; the rate on the wire is Mpps × (S + 20) × 8 / 1000 Gbps.
