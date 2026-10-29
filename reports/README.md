@@ -15,6 +15,7 @@ reference rigs. Methodology, topology and thresholds: [test strategy](../docs/te
 | `bluefield3` | BlueField-3 Arm (16× Cortex-A78AE) in DPU mode, VPP on the Arm cores | Ryzen 9 9950X + 2× ConnectX-5 Ex, TRex |
 | `epyc-cx8` | AMD EPYC 9534 (64 cores), ConnectX-8 at 400G, VPP on x86 (32 workers unless the report says otherwise) | bob: Ryzen 9 9950X + ConnectX-8, TRex built from source |
 | `epyc-platform` | AMD EPYC 9534 (64 cores), 2× ConnectX-8 + BlueField-3 (NIC mode), six ingress ports, VPP on x86 (62 workers; NPS4 since 2026-10-09, see the report header) | server1: EPYC 7742 + 2× ConnectX-7 + 3× ConnectX-5 Ex, TRex built from source |
+| `epyc-sd`, `epyc-sd-pps` | AMD EPYC 9534 (64 cores, NPS4), one ConnectX-8 in socket direct (two Gen5 x16 links, two functions per port), both 400G ports ingress, VPP on x86 (32 receive queues per port) | server1: EPYC 7742 + 2× ConnectX-7 through a MikroTik switch into port 1, BlueField-3 (NIC mode) by DAC into port 0, TRex built from source |
 | `alice` | Ryzen 9 9950X (16 cores), ConnectX-8 at 400G, VPP on x86 (15 workers) | bob: Ryzen 9 9950X + ConnectX-8, TRex built from source |
 | `bob` | Ryzen 9 9950X (16 cores), ConnectX-8 at 400G, VPP on x86 (15 workers) | alice: Ryzen 9 9950X + ConnectX-8, TRex built from source |
 
@@ -96,6 +97,7 @@ This is the source the other two files are generated from (`labs/hw/report.py`).
 
 | Report | Rig | Suite | FastACL | VPP | DUT software | Result |
 |---|---|---|---|---|---|---|
+| [2026-10-29_1215_epyc-sd-pps_platform](2026-10-29_1215_epyc-sd-pps_platform/) | epyc-sd-pps | platform |  |  | kernel 6.8.0-147-generic | CALIBRATION RUN (no verdict): 0 checks passed, 0 failed, 17 recorded measurements. 2026-10-29 11:56 UTC. |
 | [2026-10-29_0837_epyc-sd_platform](2026-10-29_0837_epyc-sd_platform/) | epyc-sd | platform |  |  | kernel 6.8.0-147-generic | CALIBRATION RUN (no verdict): 0 checks passed, 0 failed, 14 recorded measurements. 2026-10-29 08:19 UTC. |
 | [2026-10-29_0819_epyc-sd-pps_platform](2026-10-29_0819_epyc-sd-pps_platform/) | epyc-sd-pps | platform |  |  | kernel 6.8.0-147-generic | CALIBRATION RUN (no verdict): 0 checks passed, 0 failed, 17 recorded measurements. 2026-10-29 08:00 UTC. |
 | [2026-10-09_1331_epyc-platform_platform](2026-10-09_1331_epyc-platform_platform/) | epyc-platform | platform |  |  | kernel 6.8.0-142-generic | CALIBRATION RUN (no verdict): 0 checks passed, 0 failed, 23 recorded measurements. 2026-10-09 13:13 UTC. |
