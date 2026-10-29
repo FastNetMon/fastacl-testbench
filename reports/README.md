@@ -96,6 +96,7 @@ This is the source the other two files are generated from (`labs/hw/report.py`).
 
 | Report | Rig | Suite | FastACL | VPP | DUT software | Result |
 |---|---|---|---|---|---|---|
+| [2026-10-29_0837_epyc-sd_platform](2026-10-29_0837_epyc-sd_platform/) | epyc-sd | platform |  |  | kernel 6.8.0-147-generic | CALIBRATION RUN (no verdict): 0 checks passed, 0 failed, 14 recorded measurements. 2026-10-29 08:19 UTC. |
 | [2026-10-29_0819_epyc-sd-pps_platform](2026-10-29_0819_epyc-sd-pps_platform/) | epyc-sd-pps | platform |  |  | kernel 6.8.0-147-generic | CALIBRATION RUN (no verdict): 0 checks passed, 0 failed, 17 recorded measurements. 2026-10-29 08:00 UTC. |
 | [2026-10-09_1331_epyc-platform_platform](2026-10-09_1331_epyc-platform_platform/) | epyc-platform | platform |  |  | kernel 6.8.0-142-generic | CALIBRATION RUN (no verdict): 0 checks passed, 0 failed, 23 recorded measurements. 2026-10-09 13:13 UTC. |
 | [2026-10-09_1110_epyc-platform_platform](2026-10-09_1110_epyc-platform_platform/) | epyc-platform | platform |  |  | kernel 6.8.0-142-generic | CALIBRATION RUN (no verdict): 0 checks passed, 0 failed, 23 recorded measurements. 2026-10-09 10:52 UTC. |
