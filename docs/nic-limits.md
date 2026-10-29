@@ -23,7 +23,7 @@ received, with nothing reaching VPP.
 
 All rates are in Mpps.
 
-## Whole host (epyc-sp5)
+## Whole host (epyc-sp5, until 2026-10-28)
 
 Two ConnectX-8 and the BlueField-3 in one EPYC 9534, fed by six server1 ports (`2n-platform`):
 
