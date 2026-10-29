@@ -81,13 +81,18 @@ test (DUT), connected back to back by 100 GbE DACs, with no switch in between.
 | `2n-bf3-arm` | lava1 | BlueField-3 Arm, 16× Cortex-A78 | BlueField-3 in DPU mode (Arm owns the ports) | L7, L8 |
 | `2n-zen5-cx8` | bob or alice | alice or bob, AMD Ryzen 9 9950X | ConnectX-8, dual port, 400G | L6, L9 |
 | `2n-genoa-cx8` | bob | epyc-sp5, AMD EPYC 9534 (Genoa), 12× DDR5-4800 | ConnectX-8, dual port, 400G | L6 |
-| `2n-platform` | server1 (2× ConnectX-7, 3× ConnectX-5 Ex, six ports) | epyc-sp5, AMD EPYC 9534 (Genoa), 12× DDR5-4800 | 2× ConnectX-8 and the BlueField-3 in NIC mode, six ports, all ingress | platform ceiling |
+| `2n-platform` | server1 (2× ConnectX-7, 3× ConnectX-5 Ex, six ports) | epyc-sp5, AMD EPYC 9534 (Genoa), 12× DDR5-4800 | 2× ConnectX-8 and the BlueField-3 in NIC mode, six ports, all ingress | platform ceiling (2026-10-09 to 10-28) |
+| `2n-genoa-cx8sd` | server1 (2× ConnectX-7 through a MikroTik switch, BlueField-3 in NIC mode) | epyc-sp5, AMD EPYC 9534 (Genoa), 12× DDR5-4800 | one ConnectX-8, socket direct (two Gen5 x16 links, two functions per port), both ports ingress | one-port packet rate, two-port bandwidth |
 
 Since 2026-10-07 epyc-sp5 carries alice's ConnectX-8 and the BlueField-3 is out of the box, so
 `2n-genoa-bf3`, `2n-bf3-arm` and `2n-zen5-cx8` cannot run until the cards go back (see `docs/lab.md`).
 `2n-genoa-cx8` runs 32 VPP workers: more receive queues make the ConnectX-8 drop at the port.
-`2n-platform` (since 2026-10-09) measures how many small packets the whole host takes in: one
+`2n-platform` (2026-10-09 to 2026-10-28) measured how many small packets the whole host takes in: one
 generator card group per stage, 62 VPP workers with the BIOS at NPS4 (one buffer pool per NUMA node), one receive queue each, every packet dropped.
+Since 2026-10-28 the lab is cabled for `2n-genoa-cx8sd` instead, and `2n-platform` cannot run: the
+BlueField-3 is in server1 and only one ConnectX-8 is cabled. `2n-genoa-cx8sd` measures the packet rate
+one ConnectX-8 port takes (`run.sh epyc-sd-pps platform`, 64 B from both ConnectX-7 through the switch)
+and the bandwidth of both ports (`run.sh epyc-sd platform`, 1500 B), 32 VPP receive queues per port.
 
 The DUT runs **bridged**: an L2 cross-connect with FastACL on the `l2-input` arcs. Lab machines, cabling
 and access are described in `docs/lab.md`.

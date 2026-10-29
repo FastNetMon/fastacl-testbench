@@ -9,17 +9,19 @@ addresses are **not** in this repository: they come from the `LAB_ENV` secret, r
 
 | Name | Role | CPU | NIC | Profile |
 |------|------|-----|-----|---------|
-| server1 | DUT, `2n-rome-cx7`; since 2026-10-09 the six-port TG for `2n-platform` | AMD EPYC 7742 (Rome), 64 cores / 128 threads | was: ConnectX-7, dual port, links at 200 Gbps. Now: 2× ConnectX-7 (`81:00`, `c2:00`, 200G) and 3× ConnectX-5 Ex (`01:00`, `82:00`, `c1:00`, 100G) | `labs/hw/profiles/server1.env`, `GEN=server1` |
+| server1 | DUT, `2n-rome-cx7`; 2026-10-09 to 10-28 the six-port TG for `2n-platform`; since 2026-10-28 the TG for `2n-genoa-cx8sd` | AMD EPYC 7742 (Rome), 64 cores / 128 threads | 2× ConnectX-7 (`81:00`, `c2:00`, 200G, to the MikroTik) and, since 2026-10-28, the BlueField-3 in NIC mode (`84:00`, 400G DAC to epyc-sp5; PCIe Gen4 x16, ~252 Gb/s). The 3× ConnectX-5 Ex (`01:00`, `82:00`, `c1:00`) are no longer cabled | `labs/hw/profiles/server1.env`, `GEN=server1` |
 | epyc-sp5 | DUT, `2n-genoa-bf3` | AMD EPYC 9534 (Genoa), 64 cores, PCIe Gen5 | BlueField-3 B3240 (integrated ConnectX-7), host NIC mode | `labs/hw/profiles/epyc-sp5.env` |
 | epyc-sp5 | DUT, `2n-genoa-cx8` (since 2026-10-07; BlueField-3 removed) | AMD EPYC 9534 (Genoa), 64 cores, 12× DDR5-4800 | alice's ConnectX-8 in CPU SLOT5, links at 400 Gbps; PCIe Gen5 x16 | `labs/hw/profiles/epyc-cx8.env`, TG bob |
 | epyc-sp5 | DUT, `2n-platform` (since 2026-10-09) | AMD EPYC 9534 (Genoa), 64 cores, 12× DDR5-4800 | alice's ConnectX-8 (`41:00`, CPU SLOT5), bob's ConnectX-8 (`0a:00`) and the BlueField-3 back in NIC mode (`03:00`); six ports, all ingress | `labs/hw/profiles/epyc-platform.env`, TG server1 |
-| bluefield3 | DUT, `2n-bf3-arm` | BlueField-3 Arm, 16× Cortex-A78 | the same BlueField-3 in DPU mode | `labs/hw/dpu/` |
+| epyc-sp5 | DUT, `2n-genoa-cx8sd` (since 2026-10-28) | AMD EPYC 9534 (Genoa), 64 cores, 12× DDR5-4800, NPS4 | bob's ConnectX-8 with the socket-direct auxiliary x16 (MCIU cable + add-on card): two PCIe Gen5 x16 links, two functions per port (`01:00.0/.1`, `02:00.0/.1`, all NUMA node 3). Port 1: 400G optics to the MikroTik; port 0: 400G DAC to server1's BlueField-3. alice's ConnectX-8 (`41:00`) stays in but is not cabled | `labs/hw/profiles/epyc-sd.env`, `epyc-sd-pps.env`, TG server1 |
+| bluefield3 | DUT, `2n-bf3-arm` (cannot run since 2026-10-28: the card is in server1) | BlueField-3 Arm, 16× Cortex-A78 | the same BlueField-3 in DPU mode | `labs/hw/dpu/` |
 | alice | DUT (profile `alice`) and TG for bob; no NIC since 2026-10-07 (card moved to epyc-sp5) | AMD Ryzen 9 9950X, 16 cores / 32 threads | ConnectX-8, dual port, links at 400 Gbps; PCIe Gen5 x16 (half of the card's Gen6 x16) | `labs/hw/profiles/alice.env`, `GEN=alice` |
 | bob | DUT (profile `bob`) and TG for alice | AMD Ryzen 9 9950X, 16 cores / 32 threads | ConnectX-8, dual port, links at 400 Gbps; PCIe Gen5 x16 | `labs/hw/profiles/bob.env`, `GEN=bob` |
 | flame1 | TG for server1 | AMD Ryzen 7 5800X | ConnectX-7, dual port | `GEN=flame` |
 | lava1 | TG for epyc-sp5 and bluefield3 | AMD Ryzen 9 9950X | 2× ConnectX-5 Ex (one sender card, one receiver card) | `GEN=lava` |
 | dell | spare TG | 2× Intel Xeon Gold 6230R | 2× ConnectX-5 | `GEN=dell` |
-| rackpi | out-of-band proxy | Raspberry Pi 5 | — | reaches the BMCs and PDUs |
+| rackpi | out-of-band proxy | Raspberry Pi 5 | — | reaches the BMCs and PDUs, and server1 while it is off the tailnet |
+| MikroTik | switch | — | 400G and 200G ports | since 2026-10-28 joins both server1 ConnectX-7 to ConnectX-8 port 1; not managed by the bench |
 
 The BMCs (IPMI, iDRAC) and two networked PDUs sit on the lab's management LAN and are reached
 only through rackpi. `labs/hw/bringup-guarded.sh` uses them to recover a DUT whose NIC wedged
@@ -111,7 +113,24 @@ bob   port 1  ──400G──►  epyc-sp5 CX-8 port 1  (ingress)
 bob   port 0  ◄─400G───  epyc-sp5 CX-8 port 0  (egress)
 ```
 
-Since 2026-10-09 (`2n-platform`, every epyc-sp5 port is an ingress; TRex port number first):
+Since 2026-10-28 (`2n-genoa-cx8sd`, profiles `epyc-sd` and `epyc-sd-pps`; TRex port number first):
+
+```
+server1 0  CX-7 #1   81:00.0  ──200G──►  MikroTik  ──400G optics──►  epyc-sp5 CX-8 port 1  (01:00.1 + 02:00.1)
+server1 1  CX-7 #2   c2:00.1  ──200G──►  MikroTik  ─┘
+server1 2  BF-3 p0   84:00.0  ──400G DAC───────────────────────────►  epyc-sp5 CX-8 port 0  (01:00.0 + 02:00.0)
+server1 3  BF-3 p1   84:00.1  (no cable; completes TRex's second port pair)
+```
+
+The ConnectX-8 runs socket direct: each physical port appears as two PCIe functions, one per
+Gen5 x16 link, each with its own MAC, and the card delivers a frame to the function whose MAC it
+carries. The bench therefore points ConnectX-7 #1 at `01:00.1` and #2 at `02:00.1`, and the
+BlueField-3 alternates between `01:00.0` and `02:00.0` (`SINK_SPLIT`). DACs do not work between
+the ConnectX-8 and the MikroTik at 400G (different encoding); that link is optics. Enabling the
+auxiliary x16 took `mlxconfig` (`PCI_BUS10_WIDTH=5 PCI_BUS10_SPEED=4`, both buses Gen5) and a
+power cycle; see FastNetMon/hardware_quirks, `Mellanox_Connect_X_8_direct_connect.md`.
+
+From 2026-10-09 to 2026-10-28 (`2n-platform`, every epyc-sp5 port an ingress; TRex port number first):
 
 ```
 server1 0  CX-7 #1   81:00.1  ──200G──►  epyc-sp5 CX-8 A port 1  41:00.1
@@ -221,6 +240,7 @@ scripts call it so each run finds the card in the mode it needs.
 |---|---|---|---|
 | BlueField-3 removed, alice's ConnectX-8 fitted in CPU SLOT5 (`41:00.0/.1`), cabled port to port with bob | 2026-10-07 | by hand | new rig `epyc-cx8`; card links at PCIe Gen5 x16 (the card is Gen6) |
 | bob's ConnectX-8 added (`0a:00.0/.1`), BlueField-3 refitted (`03:00`), all cabled to server1 | 2026-10-09 | by hand | new rig `epyc-platform` |
+| bob's ConnectX-8 moved and given the socket-direct auxiliary x16 (`01:00`, `02:00`; `mlxconfig` `PCI_BUS10_*`), BlueField-3 moved to server1, everything recabled through a MikroTik | 2026-10-28 | by hand (Pavel) | new rig `epyc-sd`; `epyc-platform` cannot run |
 | `iommu=pt` added to the kernel command line (backup `grub.bak-20261009`) | 2026-10-09 | `/etc/default/grub` | no throughput change; matches the other hosts |
 | BIOS NUMA Nodes Per Socket: Auto (NPS1) → **NPS4** | 2026-10-09 | `setup/bios-numa.py` | VPP drops 450 Mpps instead of 148 with 62 workers (see tuning above) |
 | `isolcpus`, `nohz_full`, `rcu_nocbs` widened from `1-32` to `1-63` | 2026-10-07 | `/etc/default/grub` by hand (backup `grub.bak-20261007`) | lets VPP run up to 62 workers; VPP refuses 63 (`VPP_MAX_WORKERS` 64 counts the main thread) |
