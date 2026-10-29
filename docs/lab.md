@@ -238,21 +238,26 @@ scripts call it so each run finds the card in the mode it needs.
 
 One ConnectX-8 with both Gen5 x16 links (two functions per port), fed by server1 (two ConnectX-7
 through the MikroTik into port 1, the BlueField-3 into port 0). 5 drop rules; rates in Mpps,
-Gbps on the wire. Reports `2026-10-29_0819_epyc-sd-pps_platform` and `2026-10-29_0837_epyc-sd_platform`
-(62 workers); the 16- and 8-queue rows are a two-trial unpublished check, to be re-run as a full report.
+Gbps on the wire, median of three trials. Reports `2026-10-29_1215_epyc-sd-pps_platform` and
+`2026-10-29_1234_epyc-sd_platform` (32 queues per port, the default); `2026-10-29_0819_epyc-sd-pps_platform`
+and `2026-10-29_0837_epyc-sd_platform` are the same stages with 62 workers; the 8 + 8 row is a
+two-trial check.
 
 | What | Offered | NIC takes in | VPP drops | Queues |
 |---|---|---|---|---|
-| Port 1, 64 B, both ConnectX-7 (one function each) | 560 | 226 | **226.4** | 16 + 16 |
+| Port 1, 64 B, both ConnectX-7 (one function each) | 560 | 226.4 | **226.4** | 16 + 16 |
+| same, 140 Mpps per ConnectX-7 | 280 | 224.3 | 224.3 | 16 + 16 |
+| same, 100 Mpps per ConnectX-7 | 200 | 200 | 200, no loss | 16 + 16 |
 | same | 560 | 230 | 168–169 | 31 + 31 |
 | same | 560 | 222–224 | 185–190 | 8 + 8 |
 | same, 100 Mpps per ConnectX-7 | 200 | 200 | 164 | 31 + 31 |
 | one ConnectX-7 into one function | 280 | 211–214 | 210–212 | 31 |
-| same | 280 | 191 | 190 | 16 |
-| Both ports, 64 B, both ConnectX-7 + BlueField-3 | 729 | 229 (57 per function) | 146 | 26 + 26 + 5 + 5 |
-| Port 1, 1500 B | 400 Gbps | 400 Gbps | **400 Gbps**, no loss | 26 + 26 |
-| Port 0, 1500 B (BlueField-3, PCIe Gen4) | 200 Gbps | 200 Gbps | 200 Gbps, no loss | 5 + 5 |
-| Both ports, 1500 B | 410 Gbps (server1's limit) | 410 Gbps | 410 Gbps, no loss | 26 + 26 + 5 + 5 |
+| same | 280 | 190.8 | 189.9 | 16 |
+| Both ports, 64 B, both ConnectX-7 + BlueField-3 | 759 | 229.3 (57 per function) | 171.9 (port 1: 114, all it takes in; port 0: 58 of 115, 8 workers per function) | 16 + 16 + 8 + 8 |
+| same | 729 | 229 | 146 | 26 + 26 + 5 + 5 |
+| Port 1, 1500 B | 400 Gbps | 400 Gbps | **400 Gbps**, no loss | 16 + 16 |
+| Port 0, 1500 B (BlueField-3, PCIe Gen4) | 200 Gbps | 200 Gbps | 200 Gbps, no loss | 8 + 8 |
+| Both ports, 1500 B | 410 Gbps (server1's limit) | 410 Gbps | 410 Gbps, no loss | 16 + 16 + 8 + 8 |
 
 - **The card takes in ~230 Mpps of 64 B in all**, through one port or both, and discards the rest at
   the port (`rx_discards_phy`). One function alone takes ~212. The second x16 link adds bandwidth,

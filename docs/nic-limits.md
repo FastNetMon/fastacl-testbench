@@ -57,8 +57,10 @@ ConnectX-7 through a MikroTik switch:
 | ConnectX-8 port 1 takes in | ~230 (~330 discarded at the port) | ~154 | — |
 | VPP drops, port 1, 16 + 16 queues | **226** | 152 | 32 workers |
 | VPP drops, port 1, 31 + 31 queues | 168 | 113 | 62 workers |
-| ConnectX-8, both ports, 729 Mpps offered | ~229 taken in | | |
-| Port 1 at 1500 B | 32.9 = **400 Gbps**, no loss | 400 | 52 workers |
+| ConnectX-8, both ports, 759 Mpps offered | 229 taken in, 172 dropped by VPP | | 48 workers |
+| Port 1 at 1500 B | 32.9 = **400 Gbps**, no loss | 400 | 32 workers |
+
+Reports `2026-10-29_1215_epyc-sd-pps_platform` and `2026-10-29_1234_epyc-sd_platform`.
 
 The card takes in ~230 Mpps of small frames whether one port or both are loaded; the
 auxiliary x16 adds bandwidth (400 Gbps lossless on one port) but not packet rate. Details:
