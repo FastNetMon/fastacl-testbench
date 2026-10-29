@@ -74,6 +74,16 @@ test (DUT), connected back to back by 100 GbE DACs, with no switch in between.
   receiver port ◄─────── 100G DAC ────────  eth-right  (egress, forwarded)
 ```
 
+The exception is `2n-genoa-cx8sd` (since 2026-10-28), a sink-only topology with a switch in one path:
+
+```
+  server1 (TRex)                                         epyc-sp5 (VPP + FastACL, every port drops)
+  ConnectX-7 #1 ──200G──►┐
+                         MikroTik ──400G optics──►  ConnectX-8 port 1  (socket direct: 01:00.1 + 02:00.1)
+  ConnectX-7 #2 ──200G──►┘
+  BlueField-3   ──────────── 400G DAC ─────────►  ConnectX-8 port 0  (01:00.0 + 02:00.0)
+```
+
 | Topology | TG | DUT | NIC on the DUT | Used by |
 |----------|----|-----|----------------|---------|
 | `2n-rome-cx7` | flame1 | server1, AMD EPYC 7742 (Rome) | ConnectX-7, dual port | L5, L6 |
