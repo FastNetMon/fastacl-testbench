@@ -82,7 +82,10 @@ case "$DUT" in
     DUT_BUFFERS_PER_NUMA="${DUT_BUFFERS_PER_NUMA:-524288}"
     # Gen ports 0/1 (ConnectX-7 via the switch) feed port 1's two functions,
     # gen port 2 (BlueField-3) feeds port 0, alternating between its functions.
-    SINK_PORTS="${SINK_PORTS:-0000:01:00.1:sd-p1a:26:enp1s0f1np1 0000:02:00.1:sd-p1b:26:enp2s0f1np1 0000:01:00.0:sd-p0a:5:enp1s0f0np0 0000:02:00.0:sd-p0b:5:enp2s0f0np0}"
+    # 32 receive queues per physical port: port 1 drops 226 Mpps with 16 + 16,
+    # 168 with 31 + 31 and ~188 with 8 + 8 (2026-10-29), as the ConnectX-8 and
+    # ConnectX-7 lose packets at the port with more than ~32 queues active.
+    SINK_PORTS="${SINK_PORTS:-0000:01:00.1:sd-p1a:16:enp1s0f1np1 0000:02:00.1:sd-p1b:16:enp2s0f1np1 0000:01:00.0:sd-p0a:8:enp1s0f0np0 0000:02:00.0:sd-p0b:8:enp2s0f0np0}"
     # gen port 2 sends to sink 2 and sink 3 (one stream per MAC).
     SINK_SPLIT="${SINK_SPLIT:-2:3}"
     # Sink ports behind the MikroTik: VPP announces their MACs (one ARP) before
