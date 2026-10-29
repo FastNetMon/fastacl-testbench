@@ -8,7 +8,8 @@
 
 One UDP stream per port in <ports> (comma list of TRex port ids), frame <size>
 bytes including FCS, source address incremented over 65,536 values so the
-receiver's RSS spreads it, multiplier <mult> per port (e.g. 700mpps).  Traffic
+receiver's RSS spreads it, multiplier <mult> per port (e.g. 700mpps).  A
+<dst-mac> of the form a/b splits that port's traffic over several MACs.  Traffic
 runs for <seconds> and stops; TRex stops a client's streams when it disconnects,
 so the client stays connected throughout.  Prints one JSON line with the TRex
 transmit rate per port over the last half of the run.
@@ -53,8 +54,9 @@ def main(argv):
         c.acquire(ports=all_ports, force=True)
         c.stop(ports=all_ports)
         c.remove_all_streams(ports=all_ports)
+        # "a/b" sends to several MACs from one port, one stream set per MAC at an equal share.
         for p, mac in zip(ports, macs):
-            c.add_streams([stream(size, mac) for _ in range(STREAMS)], ports=[p])
+            c.add_streams([stream(size, m) for m in mac.split("/") for _ in range(STREAMS)], ports=[p])
         c.start(ports=ports, mult=mult, force=True)
         time.sleep(secs / 2)
         s1, t1 = c.get_stats(ports=ports), time.time()

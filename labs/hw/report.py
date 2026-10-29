@@ -156,13 +156,20 @@ PLATFORM_STAGES = {
     "cx7x2": "both ConnectX-7",
     "cx7x2+cx5-1": "both ConnectX-7 + ConnectX-5 #1",
     "all": "all six ports",
+    "p1-64": "both ConnectX-7 into ConnectX-8 port 1",
+    "p1-r100": "both ConnectX-7 into ConnectX-8 port 1",
+    "p1-r140": "both ConnectX-7 into ConnectX-8 port 1",
+    "p1-1500": "both ConnectX-7 into ConnectX-8 port 1",
+    "p0-1500": "BlueField-3 into ConnectX-8 port 0",
+    "both-1500": "both ConnectX-7 and the BlueField-3 into both ConnectX-8 ports",
+    "both-64": "both ConnectX-7 and the BlueField-3 into both ConnectX-8 ports",
 }
 
 
 def platform_rig_table(rig, meta):
     ports = ", ".join(f"{p['dut']} ({p['queues']} queues)" for p in rig.get("ports", []))
     rows = [
-        ("Topology", f"{meta['gen']} (TRex, six ports) cabled port to port to {meta['dut']}, no switch; "
+        ("Topology", rig.get("topology") or f"{meta['gen']} (TRex, six ports) cabled port to port to {meta['dut']}, no switch; "
                      "every DUT port is an ingress and drops everything"),
         ("DUT CPU", f"{rig.get('dut_cpu', '?')} ({fmt(rig.get('dut_cores'))} CPUs), memory {rig.get('dut_memory', '?')}"),
         ("DUT kernel", f"{rig.get('dut_kernel', '?')}, IOMMU {rig.get('dut_iommu', '?')}"),
@@ -182,11 +189,15 @@ def platform_method():
     return [
         "## Method",
         "",
-        "- The generator sends 64 B UDP frames (64 B including the FCS, 84 B on the wire) at the "
-        "line rate of every port in the stage; each stage adds generator cards. The destination port "
+        "- The generator sends UDP frames of the stage's size (**frame**, FCS included: 64 B is 84 B on the "
+        "wire) at the line rate of every port in the stage; each stage adds generator cards. The destination port "
         "matches the drop rules, so FastACL drops every packet VPP receives.",
-        "- The source address increments over 65,536 values so RSS spreads the load over the queues.",
-        "- **sent** is the generator's `tx_packets_phy`; **NIC received** is the DUT's `rx_packets_phy`; "
+        "- The source address increments over 65,536 values so RSS spreads the load over the queues. "
+        "Where one generator port feeds two DUT functions (a socket-direct port), it alternates "
+        "between their MACs and its sent rate is shown split evenly between them.",
+        "- **sent** is the generator's `tx_packets_phy`; **NIC received** is the DUT's `rx_packets_phy` "
+        "(`rx_vport_unicast_packets` on a socket-direct port, whose two functions share the port counters; "
+        "its `rx_discards_phy` is counted once); "
         "**NIC dropped** is `rx_discards_phy + rx_out_of_buffer`; **VPP received** is the interface "
         "receive counter; **VPP dropped** is FastACL's aggregate drop counter. Packets the NIC "
         "received but VPP did not take (ring full, `rx_prio0_buf_discard`) are the gap between "
@@ -220,9 +231,9 @@ def platform_tables(data, rig):
         tr = sorted((r for r in rows if r["scenario"] == st), key=lambda r: r.get("vpp_drop_mpps") or 0)
         med[st] = tr[len(tr) // 2]
     out = ["## Summary (median trial)", ""]
-    out += table(["stage", "generator", "trials", "VPP workers", "sent", "NIC received", "NIC dropped", "VPP received",
+    out += table(["stage", "generator", "frame", "offered per port", "trials", "VPP workers", "sent", "NIC received", "NIC dropped", "VPP received",
                   "VPP dropped", "sent Gbps", "VPP dropped Gbps"],
-                 [[st, PLATFORM_STAGES.get(st, ""), sum(1 for r in rows if r["scenario"] == st), workers(med[st]),
+                 [[st, PLATFORM_STAGES.get(st, ""), med[st].get('frame', 64), med[st].get("offered", "100%").replace("mpps", " Mpps").replace("100%", "line rate"), sum(1 for r in rows if r["scenario"] == st), workers(med[st]),
                    med[st].get("tx_mpps"), med[st].get("nic_rx_mpps"), med[st].get("nic_lost_mpps"),
                    med[st].get("vpp_rx_mpps"), med[st].get("vpp_drop_mpps"),
                    gbps(med[st], "tx_mpps"), gbps(med[st], "vpp_drop_mpps")] for st in order])

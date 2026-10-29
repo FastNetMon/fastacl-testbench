@@ -63,6 +63,39 @@ case "$DUT" in
     # These ports carry ConnectX-5 DACs that link reliably only with autonegotiation off.
     SINK_FORCE_100G="${SINK_FORCE_100G:-enp65s0f0np0 enp10s0f0np0}"
     ;;
+  epyc-sd)
+    # epyc-sp5 since 2026-10-28: bob's ConnectX-8 with the socket-direct
+    # auxiliary x16 (MCIU cable + add-on card), so each physical port has two
+    # PCIe functions, one per Gen5 x16 link, each with its own MAC:
+    #   port 1 (400G optics -> MikroTik, fed by both server1 ConnectX-7): 01:00.1, 02:00.1
+    #   port 0 (400G DAC -> server1 BlueField-3 port 0):                   01:00.0, 02:00.0
+    # The generator sends to a function by its MAC, so traffic is split
+    # between the two x16 links per TRex port (SINK_SPLIT).  41:00 (alice's
+    # card) is not cabled.  All four functions sit on NUMA node 3.
+    DUT_HOST="${LAB_HOST_epyc:-}"
+    DUT_PCI_0="0000:01:00.0"; DUT_IFACE_0="enp1s0f0np0"
+    DUT_PCI_1="0000:01:00.1"; DUT_IFACE_1="enp1s0f1np1"
+    DUT_INGRESS_DEFAULT="0000:01:00.1"
+    DUT_LEFT_MAC_DEFAULT=""; DUT_RIGHT_MAC_DEFAULT=""
+    DUT_IPMI_HOST="${LAB_IPMI_HOST_epyc:-}"; DUT_IPMI_USER="${LAB_IPMI_USER_epyc:-}"; DUT_IPMI_PASS="${LAB_IPMI_PASS_epyc:-}"
+    SINK_NUMA_NODES="${SINK_NUMA_NODES:-4}"
+    DUT_BUFFERS_PER_NUMA="${DUT_BUFFERS_PER_NUMA:-524288}"
+    # Gen ports 0/1 (ConnectX-7 via the switch) feed port 1's two functions,
+    # gen port 2 (BlueField-3) feeds port 0, alternating between its functions.
+    SINK_PORTS="${SINK_PORTS:-0000:01:00.1:sd-p1a:26:enp1s0f1np1 0000:02:00.1:sd-p1b:26:enp2s0f1np1 0000:01:00.0:sd-p0a:5:enp1s0f0np0 0000:02:00.0:sd-p0b:5:enp2s0f0np0}"
+    # gen port 2 sends to sink 2 and sink 3 (one stream per MAC).
+    SINK_SPLIT="${SINK_SPLIT:-2:3}"
+    # Sink ports behind the MikroTik: VPP announces their MACs (one ARP) before
+    # each measurement so the switch forwards rather than floods.
+    SINK_SWITCHED="${SINK_SWITCHED:-0 1}"
+    # rx_packets_phy and rx_discards_phy count the physical port, so both
+    # functions of a port report the same number: count received packets per
+    # function (vport) and port discards once per physical port (SINK_PHYS
+    # gives each SINK_PORTS entry its physical port).
+    SINK_RX_COUNTER="${SINK_RX_COUNTER:-rx_vport_unicast_packets}"
+    SINK_PHYS="${SINK_PHYS:-1 1 0 0}"
+    SINK_FORCE_100G=""
+    ;;
   alice|bob)
     DUT_HOST_VAR="LAB_HOST_$DUT"; DUT_HOST="${!DUT_HOST_VAR:-}"
     DUT_PCI_0="0000:01:00.0"; DUT_IFACE_0="enp1s0f0np0"
@@ -78,7 +111,7 @@ case "$DUT" in
     DUT_SKIP_OFED=1
     ;;
   *)
-    echo "vars.sh: unknown DUT='$DUT' (use 'server1', 'epyc', 'epyc-cx8', 'epyc-platform', 'alice' or 'bob')" >&2
+    echo "vars.sh: unknown DUT='$DUT' (use 'server1', 'epyc', 'epyc-cx8', 'epyc-platform', 'epyc-sd', 'alice' or 'bob')" >&2
     return 1 2>/dev/null || exit 1
     ;;
 esac
@@ -173,8 +206,18 @@ case "$GEN" in
     SENDER_MAC=""; RECEIVER_MAC=""
     GEN_IFACE0="enp129s0f1np1"
     GEN_IFACE1="enp194s0f0np0"
-    TREX_PCI_LIST="${TREX_PCI_LIST:-0000:81:00.1 0000:c2:00.0 0000:01:00.1 0000:01:00.0 0000:82:00.0 0000:c1:00.0}"
-    GEN_FORCE_100G="${GEN_FORCE_100G:-enp1s0f0np0 enp1s0f1np1}"
+    if [ "$DUT" = epyc-sd ]; then
+      # Since 2026-10-28: ConnectX-7 #1 81:00.0 and #2 c2:00.1 at 200G into the
+      # MikroTik, BlueField-3 (NIC mode, PCIe Gen4 x16, ~252 Gb/s) 84:00.0 by DAC
+      # to the ConnectX-8.  84:00.1 has no cable; it only completes TRex's pair.
+      TREX_PCI_LIST="${TREX_PCI_LIST:-0000:81:00.0 0000:c2:00.1 0000:84:00.0 0000:84:00.1}"
+      GEN_FORCE_100G="${GEN_FORCE_100G:-}"
+      SENDER_PCI="0000:81:00.0"; RECEIVER_PCI="0000:c2:00.1"
+      GEN_IFACE0="enp129s0f0np0"; GEN_IFACE1="enp194s0f1np1"
+    else
+      TREX_PCI_LIST="${TREX_PCI_LIST:-0000:81:00.1 0000:c2:00.0 0000:01:00.1 0000:01:00.0 0000:82:00.0 0000:c1:00.0}"
+      GEN_FORCE_100G="${GEN_FORCE_100G:-enp1s0f0np0 enp1s0f1np1}"
+    fi
     TREX_PORT_MTU=9000
     TREX_MASTER_CORE=0
     TREX_LATENCY_CORE=63

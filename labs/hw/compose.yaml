@@ -51,6 +51,7 @@ services:
       - TREX_CORES=${TREX_CORES:-}
       - TREX_PORTS=${TREX_PORTS:-}
       - TREX_DEVARGS=${TREX_DEVARGS:-}
+      - TREX_PCI_LIST=${TREX_PCI_LIST:-}
     volumes:
       - ../..:/src
       - /dev/hugepages:/dev/hugepages
