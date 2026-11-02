@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| Topology | server1 (TRex, six ports) cabled port to port to epyc-sd-pps, no switch; every DUT port is an ingress and drops everything |
+| Topology | server1 (TRex, two ports): ConnectX-7 #1 and #2 at 200G through a MikroTik switch into ConnectX-8 port 1 (400G optics); the ConnectX-8 runs socket direct, ConnectX-7 #1 feeds the port 1 function on the first PCIe Gen5 x16 link and #2 the one on the second; every DUT port is an ingress and drops everything |
 | DUT CPU | AMD EPYC 9534 64-Core Processor (128 CPUs), memory 12 x 4800 MT/s |
 | DUT kernel | 6.8.0-147-generic, IOMMU iommu=pt |
 | DUT NUMA | 4 node(s) (BIOS NUMA nodes per socket) |
